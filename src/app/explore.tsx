@@ -1,180 +1,328 @@
-import { Image } from 'expo-image';
-import { SymbolView } from 'expo-symbols';
-import { Platform, Pressable, ScrollView, StyleSheet } from 'react-native';
+import { useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ExternalLink } from '@/components/external-link';
+import { ActionButton, MoloCard, SectionHeader } from '@/components/molo-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Collapsible } from '@/components/ui/collapsible';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { BottomTabInset, Spacing } from '@/constants/theme';
+import {
+  buildMonthlySummaries,
+  budgetColumns,
+  formatMoney,
+  getPurchaseAdvice,
+  initialEntries,
+  monthNames,
+  plannedPurchases,
+} from '@/lib/budget';
 
-export default function TabTwoScreen() {
-  const safeAreaInsets = useSafeAreaInsets();
-  const insets = {
-    ...safeAreaInsets,
-    bottom: safeAreaInsets.bottom + BottomTabInset + Spacing.three,
-  };
-  const theme = useTheme();
+const voiceCommands = [
+  {
+    id: 'repair',
+    text: 'Ajoute une depense surprise de 25 000 FCFA pour reparation moto ce mois-ci.',
+    intent: 'create_expense',
+    summary: 'Depense surprise de 25 000 FCFA ajoutee au mois courant.',
+  },
+  {
+    id: 'freelance',
+    text: "J'ai recu 100 000 FCFA d'une mission freelance.",
+    intent: 'create_income',
+    summary: 'Revenu freelance de 100 000 FCFA pret a etre confirme.',
+  },
+  {
+    id: 'phone',
+    text: 'Prevois un achat telephone de 300 000 FCFA en aout.',
+    intent: 'create_purchase',
+    summary: 'Achat telephone de 300 000 FCFA planifie pour aout.',
+  },
+];
 
-  const contentPlatformStyle = Platform.select({
-    android: {
-      paddingTop: insets.top,
-      paddingLeft: insets.left,
-      paddingRight: insets.right,
-      paddingBottom: insets.bottom,
-    },
-    web: {
-      paddingTop: Spacing.six,
-      paddingBottom: Spacing.four,
-    },
-  });
+export default function AssistantScreen() {
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const [selectedCommand, setSelectedCommand] = useState(voiceCommands[0]);
+  const [confirmed, setConfirmed] = useState(false);
+  const [question, setQuestion] = useState('Quand puis-je acheter un ordinateur a 800 000 FCFA ?');
+  const summaries = useMemo(() => buildMonthlySummaries(initialEntries, budgetColumns), []);
+  const laptopAdvice = getPurchaseAdvice(plannedPurchases[0], summaries);
+  const isTablet = width >= 720;
+  const contentHorizontalPadding = width >= 720 ? Spacing.four : Spacing.three;
 
   return (
     <ScrollView
-      style={[styles.scrollView, { backgroundColor: theme.background }]}
-      contentInset={insets}
-      contentContainerStyle={[styles.contentContainer, contentPlatformStyle]}>
-      <ThemedView style={styles.container}>
-        <ThemedView style={styles.titleContainer}>
-          <ThemedText type="subtitle">Explore</ThemedText>
-          <ThemedText style={styles.centerText} themeColor="textSecondary">
-            This starter app includes example{'\n'}code to help you get started.
-          </ThemedText>
-
-          <ExternalLink href="https://docs.expo.dev" asChild>
-            <Pressable style={({ pressed }) => pressed && styles.pressed}>
-              <ThemedView type="backgroundElement" style={styles.linkButton}>
-                <ThemedText type="link">Expo documentation</ThemedText>
-                <SymbolView
-                  tintColor={theme.text}
-                  name={{ ios: 'arrow.up.right.square', android: 'link', web: 'link' }}
-                  size={12}
-                />
-              </ThemedView>
-            </Pressable>
-          </ExternalLink>
-        </ThemedView>
-
-        <ThemedView style={styles.sectionsWrapper}>
-          <Collapsible title="File-based routing">
-            <ThemedText type="small">
-              This app has two screens: <ThemedText type="code">src/app/index.tsx</ThemedText> and{' '}
-              <ThemedText type="code">src/app/explore.tsx</ThemedText>
+      style={styles.scroll}
+      contentInsetAdjustmentBehavior="automatic"
+      contentContainerStyle={[
+        styles.content,
+        {
+          paddingTop: insets.top + Spacing.three,
+          paddingBottom: insets.bottom + BottomTabInset + 92,
+          paddingHorizontal: contentHorizontalPadding,
+        },
+      ]}>
+      <ThemedView style={[styles.shell, { maxWidth: isTablet ? 680 : 430 }]}>
+        <View style={styles.appBar}>
+          <View>
+            <ThemedText type="small" themeColor="textSecondary">
+              Assistant IA
             </ThemedText>
-            <ThemedText type="small">
-              The layout file in <ThemedText type="code">src/app/_layout.tsx</ThemedText> sets up
-              the tab navigator.
+            <ThemedText type="smallBold">Commande vocale</ThemedText>
+          </View>
+          <View style={styles.statusPill}>
+            <ThemedText type="smallBold" style={styles.statusPillText}>
+              Validation
             </ThemedText>
-            <ExternalLink href="https://docs.expo.dev/router/introduction">
-              <ThemedText type="linkPrimary">Learn more</ThemedText>
-            </ExternalLink>
-          </Collapsible>
+          </View>
+        </View>
 
-          <Collapsible title="Android, iOS, and web support">
-            <ThemedView type="backgroundElement" style={styles.collapsibleContent}>
-              <ThemedText type="small">
-                You can open this project on Android, iOS, and the web. To open the web version,
-                press <ThemedText type="smallBold">w</ThemedText> in the terminal running this
-                project.
+        <MoloCard tone="ink" style={styles.recorderCard}>
+          <View style={styles.recorder}>
+            <View style={styles.micCircle}>
+              <ThemedText type="subtitle" style={styles.micText}>
+                AI
               </ThemedText>
-              <Image
-                source={require('@/assets/images/tutorial-web.png')}
-                style={styles.imageTutorial}
-              />
-            </ThemedView>
-          </Collapsible>
+            </View>
+            <View style={styles.recorderText}>
+              <ThemedText type="subtitle" style={styles.recorderTitle}>
+                Parle, Molo prepare l&apos;action.
+              </ThemedText>
+              <ThemedText type="small" style={styles.softInvertedText}>
+                La modification reste en attente tant que tu ne confirmes pas.
+              </ThemedText>
+            </View>
+          </View>
+          <ActionButton
+            label="Simuler une transcription"
+            variant="secondary"
+            onPress={() => setConfirmed(false)}
+          />
+        </MoloCard>
 
-          <Collapsible title="Images">
-            <ThemedText type="small">
-              For static images, you can use the <ThemedText type="code">@2x</ThemedText> and{' '}
-              <ThemedText type="code">@3x</ThemedText> suffixes to provide files for different
-              screen densities.
-            </ThemedText>
-            <Image source={require('@/assets/images/react-logo.png')} style={styles.imageReact} />
-            <ExternalLink href="https://reactnative.dev/docs/images">
-              <ThemedText type="linkPrimary">Learn more</ThemedText>
-            </ExternalLink>
-          </Collapsible>
+        <SectionHeader title="Commandes vocales" detail="Aucune modification sans validation." />
+        <ScrollView horizontal={!isTablet} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.commandList}>
+          {voiceCommands.map((command) => (
+            <Pressable
+              key={command.id}
+              onPress={() => {
+                setSelectedCommand(command);
+                setConfirmed(false);
+              }}
+              style={[
+                styles.commandChip,
+                selectedCommand.id === command.id && styles.commandChipActive,
+              ]}>
+              <ThemedText
+                type="smallBold"
+                style={selectedCommand.id === command.id ? styles.activeText : styles.inactiveText}>
+                {command.intent}
+              </ThemedText>
+            </Pressable>
+          ))}
+        </ScrollView>
 
-          <Collapsible title="Light and dark mode components">
-            <ThemedText type="small">
-              This template has light and dark mode support. The{' '}
-              <ThemedText type="code">useColorScheme()</ThemedText> hook lets you inspect what the
-              user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
+        <MoloCard style={styles.transcriptionCard}>
+          <ThemedText type="small" themeColor="textSecondary">
+            Transcription
+          </ThemedText>
+          <ThemedText>{selectedCommand.text}</ThemedText>
+          <View style={styles.proposalBox}>
+            <ThemedText type="smallBold" style={styles.invertedText}>
+              Action proposee
             </ThemedText>
-            <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-              <ThemedText type="linkPrimary">Learn more</ThemedText>
-            </ExternalLink>
-          </Collapsible>
+            <ThemedText type="small" style={styles.softInvertedText}>
+              {selectedCommand.summary}
+            </ThemedText>
+          </View>
+          {confirmed ? (
+            <ThemedText type="smallBold" style={styles.confirmedText}>
+              Action confirmee. Dans la version API, elle sera appliquee au budget.
+            </ThemedText>
+          ) : (
+            <View style={styles.actions}>
+              <ActionButton label="Confirmer" onPress={() => setConfirmed(true)} />
+              <ActionButton label="Modifier" variant="secondary" onPress={() => setConfirmed(false)} />
+            </View>
+          )}
+        </MoloCard>
 
-          <Collapsible title="Animations">
-            <ThemedText type="small">
-              This template includes an example of an animated component. The{' '}
-              <ThemedText type="code">src/components/ui/collapsible.tsx</ThemedText> component uses
-              the powerful <ThemedText type="code">react-native-reanimated</ThemedText> library to
-              animate opening this hint.
+        <SectionHeader title="Conseil d'achat" detail="Calcul deterministe, reponse reformulee par IA." />
+        <MoloCard tone="mint" style={styles.adviceCard}>
+          <TextInput
+            value={question}
+            onChangeText={setQuestion}
+            multiline
+            placeholder="Pose une question budgetaire"
+            placeholderTextColor="#7B8190"
+            style={styles.textArea}
+          />
+          <View style={styles.answer}>
+            <ThemedText type="smallBold" style={styles.darkText}>
+              Recommandation
             </ThemedText>
-          </Collapsible>
-        </ThemedView>
-        {Platform.OS === 'web' && <WebBadge />}
+            <ThemedText type="small" style={styles.darkText}>
+              Tu peux viser {monthNames[laptopAdvice.recommendedMonth]} pour l&apos;ordinateur. Pour
+              rester prudent, mets de cote {formatMoney(laptopAdvice.monthlySaving)} par mois et
+              garde une marge de securite avant l&apos;achat.
+            </ThemedText>
+          </View>
+        </MoloCard>
+
+        <SectionHeader title="Architecture cible" detail="Pret a brancher sur Django Rest Framework." />
+        <MoloCard>
+          {[
+            'POST /api/ai/transcribe/ pour convertir audio en texte',
+            'POST /api/ai/interpret/ pour extraire intention et action',
+            'POST /api/ai/confirm-action/ pour appliquer apres validation',
+            'POST /api/planned-purchases/{id}/simulate/ pour calculer la meilleure periode',
+          ].map((item) => (
+            <View key={item} style={styles.endpointRow}>
+              <View style={styles.dot} />
+              <ThemedText type="small">{item}</ThemedText>
+            </View>
+          ))}
+        </MoloCard>
       </ThemedView>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  scrollView: {
+  scroll: {
     flex: 1,
   },
-  contentContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  container: {
-    maxWidth: MaxContentWidth,
-    flexGrow: 1,
-  },
-  titleContainer: {
-    gap: Spacing.three,
-    alignItems: 'center',
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.six,
-  },
-  centerText: {
-    textAlign: 'center',
-  },
-  pressed: {
-    opacity: 0.7,
-  },
-  linkButton: {
-    flexDirection: 'row',
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.two,
-    borderRadius: Spacing.five,
-    justifyContent: 'center',
-    gap: Spacing.one,
+  content: {
     alignItems: 'center',
   },
-  sectionsWrapper: {
-    gap: Spacing.five,
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.three,
-  },
-  collapsibleContent: {
-    alignItems: 'center',
-  },
-  imageTutorial: {
+  shell: {
     width: '100%',
-    aspectRatio: 296 / 171,
-    borderRadius: Spacing.three,
-    marginTop: Spacing.two,
+    gap: Spacing.three,
+    backgroundColor: 'transparent',
   },
-  imageReact: {
-    width: 100,
-    height: 100,
-    alignSelf: 'center',
+  appBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.three,
+  },
+  statusPill: {
+    minHeight: 36,
+    borderRadius: 8,
+    backgroundColor: '#B6F2C8',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.three,
+  },
+  statusPillText: {
+    color: '#111827',
+  },
+  recorderCard: {
+    minHeight: 174,
+    justifyContent: 'space-between',
+  },
+  recorder: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+  },
+  micCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 8,
+    backgroundColor: '#B6F2C8',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  micText: {
+    color: '#111827',
+    fontSize: 27,
+  },
+  recorderText: {
+    flex: 1,
+    gap: Spacing.one,
+  },
+  recorderTitle: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    lineHeight: 28,
+  },
+  invertedText: {
+    color: '#FFFFFF',
+  },
+  softInvertedText: {
+    color: '#D9E1EF',
+  },
+  commandList: {
+    flexDirection: 'row',
+    gap: Spacing.two,
+    paddingRight: Spacing.three,
+  },
+  commandChip: {
+    minHeight: 44,
+    minWidth: 138,
+    borderRadius: 8,
+    paddingHorizontal: Spacing.three,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EDF2F7',
+  },
+  commandChipActive: {
+    backgroundColor: '#111827',
+  },
+  activeText: {
+    color: '#FFFFFF',
+  },
+  inactiveText: {
+    color: '#111827',
+  },
+  darkText: {
+    color: '#111827',
+  },
+  proposalBox: {
+    borderRadius: 8,
+    backgroundColor: '#121826',
+    padding: Spacing.three,
+    gap: Spacing.one,
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: Spacing.two,
+  },
+  confirmedText: {
+    color: '#16824A',
+  },
+  textArea: {
+    minHeight: 112,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#C7E8D7',
+    padding: Spacing.three,
+    fontSize: 16,
+    lineHeight: 22,
+    color: '#111827',
+    backgroundColor: '#FFFFFF',
+    textAlignVertical: 'top',
+  },
+  answer: {
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    padding: Spacing.three,
+    gap: Spacing.one,
+  },
+  endpointRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#58B579',
+  },
+  transcriptionCard: {
+    gap: Spacing.three,
+  },
+  adviceCard: {
+    gap: Spacing.three,
   },
 });
