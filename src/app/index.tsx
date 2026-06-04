@@ -1,19 +1,11 @@
 import { useMemo, useState } from 'react';
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  useWindowDimensions,
-  View,
-  type ViewStyle,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
-import { ActionButton, MoloCard, SectionHeader } from '@/components/molo-card';
+import { ActionButton, MoloCard } from '@/components/molo-card';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { BottomTabInset, Spacing } from '@/constants/theme';
+import { IconBubble, WalletHeader, WalletScreen } from '@/components/wallet-screen';
+import { MoloColors, MoloGradients, MoloRadius, MoloShadow } from '@/constants/molo-design';
+import { Spacing } from '@/constants/theme';
 import {
   budgetColumns,
   buildMonthlySummaries,
@@ -25,17 +17,7 @@ import {
   type BudgetEntry,
 } from '@/lib/budget';
 
-const purpleGradient = {
-  experimental_backgroundImage: 'linear-gradient(145deg, #C9BD80 0%, #A28F49 52%, #50412C 100%)',
-} as ViewStyle;
-
-const goldGradient = {
-  experimental_backgroundImage: 'linear-gradient(135deg, rgba(250,234,253,0.95), rgba(157,41,162,0.18))',
-} as ViewStyle;
-
 export default function DashboardScreen() {
-  const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
   const [entries, setEntries] = useState(initialEntries);
   const [activeMonth, setActiveMonth] = useState(5);
   const [entryName, setEntryName] = useState('Gombo');
@@ -44,10 +26,8 @@ export default function DashboardScreen() {
 
   const summaries = useMemo(() => buildMonthlySummaries(entries, budgetColumns), [entries]);
   const current = summaries[activeMonth];
-  const laptopAdvice = getPurchaseAdvice(plannedPurchases[0], summaries);
+  const advice = getPurchaseAdvice(plannedPurchases[0], summaries);
   const savingsRate = current.income > 0 ? Math.round((current.savings / current.income) * 100) : 0;
-  const isTablet = width >= 720;
-  const shellWidth = isTablet ? 520 : 390;
   const monthEntries = entries.filter(
     (entry) => entry.month === activeMonth || entry.recurrence === 'monthly',
   );
@@ -74,522 +54,426 @@ export default function DashboardScreen() {
   }
 
   return (
-    <ScrollView
-      style={styles.scroll}
-      contentInsetAdjustmentBehavior="automatic"
-      contentContainerStyle={[
-        styles.content,
-        {
-          paddingTop: insets.top + Spacing.three,
-          paddingBottom: insets.bottom + BottomTabInset + 96,
-        },
-      ]}>
-      <View style={styles.backgroundTop} />
-      <View style={styles.backgroundGlowOne} />
-      <View style={styles.backgroundGlowTwo} />
+    <WalletScreen>
+      <WalletHeader eyebrow="Molo" title={`Budget de ${monthNames[activeMonth]}`} action="Profil" />
 
-      <ThemedView style={[styles.phoneSurface, { maxWidth: shellWidth }]}>
-        <View style={styles.header}>
-          <View>
-            <ThemedText type="small" style={styles.headerMuted}>
-              Salut,
+      <View style={[styles.heroCard, MoloGradients.hero]}>
+        <View style={styles.heroOrb} />
+        <ThemedText type="small" style={styles.heroMuted}>
+          Solde mensuel
+        </ThemedText>
+        <ThemedText type="title" style={styles.heroAmount}>
+          {formatMoney(current.balance)}
+        </ThemedText>
+        <View style={styles.heroMetaRow}>
+          <View style={styles.heroMeta}>
+            <ThemedText type="small" style={styles.heroMuted}>
+              Epargne prevue
             </ThemedText>
-            <ThemedText type="subtitle" style={styles.headerTitle}>
-              Paul!
+            <ThemedText type="smallBold" style={styles.heroText}>
+              {formatMoney(current.savings)}
             </ThemedText>
           </View>
-          <View style={styles.headerActions}>
-            <View style={styles.avatar}>
-              <ThemedText type="smallBold" style={styles.avatarText}>
-                P
-              </ThemedText>
-            </View>
-            <Pressable style={styles.settingsButton}>
-              <ThemedText type="smallBold" style={styles.settingsText}>
-                :
-              </ThemedText>
-            </Pressable>
+          <View style={styles.growthPill}>
+            <ThemedText type="smallBold" style={styles.growthText}>
+              +{savingsRate}%
+            </ThemedText>
           </View>
         </View>
+      </View>
 
-        <View style={[styles.portfolioCard, purpleGradient]}>
-          <View style={styles.cardShine} />
-          <View style={styles.portfolioHeader}>
-            <ThemedText type="small" style={styles.cardMuted}>
-              Ton budget
-            </ThemedText>
-            <ThemedText type="small" style={styles.cardMuted}>
-              {monthNames[activeMonth]} 2026
-            </ThemedText>
-          </View>
-          <ThemedText type="small" style={styles.cardMuted}>
-            Solde mensuel
+      <View style={styles.actionGrid}>
+        <QuickAction label="Revenu" icon="+" onPress={() => setEntryType('income')} />
+        <QuickAction label="Depense" icon="-" onPress={() => setEntryType('expense')} />
+        <QuickAction label="Epargne" icon="%" onPress={() => setActiveMonth(8)} />
+        <QuickAction label="Mois" icon="v" onPress={() => setActiveMonth((value) => (value + 1) % 12)} />
+      </View>
+
+      <View style={styles.infoStrip}>
+        <IconBubble label="AI" />
+        <View style={styles.infoCopy}>
+          <ThemedText type="smallBold" style={styles.infoTitle}>
+            Assistant budget
           </ThemedText>
-          <ThemedText type="title" style={styles.balance}>
-            {formatMoney(current.balance)}
-          </ThemedText>
-          <View style={styles.monthBadge}>
-            <ThemedText type="smallBold" style={styles.monthBadgeText}>
-              +{savingsRate}% epargne
-            </ThemedText>
-          </View>
-        </View>
-
-        <View style={styles.quickActions}>
-          <RoundAction label="Revenu" icon="+" onPress={() => setEntryType('income')} />
-          <RoundAction label="Depense" icon="-" onPress={() => setEntryType('expense')} />
-          <RoundAction label="Objectif" icon="%" onPress={() => setActiveMonth(8)} />
-          <RoundAction label="Plus" icon="v" onPress={() => setActiveMonth((value) => (value + 1) % 12)} />
-        </View>
-
-        <View style={[styles.assistantBanner, purpleGradient]}>
-          <View style={styles.assistantIcon}>
-            <ThemedText type="smallBold" style={styles.assistantIconText}>
-              AI
-            </ThemedText>
-          </View>
-          <View style={styles.assistantCopy}>
-            <ThemedText type="smallBold" style={styles.invertedText}>
-              Assistant Molo
-            </ThemedText>
-            <ThemedText type="small" style={styles.bannerMuted}>
-              Achat confortable en {monthNames[laptopAdvice.recommendedMonth]}
-            </ThemedText>
-          </View>
-          <ThemedText type="subtitle" style={styles.bannerArrow}>
-            &gt;
+          <ThemedText type="small" style={styles.infoDetail}>
+            Achat confortable en {monthNames[advice.recommendedMonth]}
           </ThemedText>
         </View>
+        <ThemedText type="smallBold" style={styles.chevron}>
+          &gt;
+        </ThemedText>
+      </View>
 
-        <View style={styles.menuPanel}>
-          <MenuRow title="Revenus du mois" detail={formatMoney(current.income)} icon="+" />
-          <MenuRow title="Depenses suivies" detail={formatMoney(current.expenses)} icon="-" />
-          <MenuRow title="Epargne prevue" detail={formatMoney(current.savings)} icon="%" />
+      <View style={styles.segmented}>
+        <Pressable style={styles.segmentActive}>
+          <ThemedText type="smallBold" style={styles.segmentActiveText}>
+            Budget
+          </ThemedText>
+        </Pressable>
+        <Pressable style={styles.segment}>
+          <ThemedText type="smallBold" style={styles.segmentText}>
+            Achats
+          </ThemedText>
+        </Pressable>
+      </View>
+
+      <View style={styles.balanceList}>
+        <MetricRow icon="+" title="Revenus" detail="Total du mois" amount={formatMoney(current.income)} positive />
+        <MetricRow icon="-" title="Depenses" detail="Fixes, variables, surprises" amount={formatMoney(current.expenses)} />
+        <MetricRow icon="%" title="Epargne" detail="Objectif securite" amount={formatMoney(current.savings)} positive />
+      </View>
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.monthRail}>
+        {summaries.map((summary) => (
+          <Pressable
+            key={summary.month}
+            onPress={() => setActiveMonth(summary.month)}
+            style={[styles.monthChip, activeMonth === summary.month && styles.monthChipActive]}>
+            <ThemedText
+              type="smallBold"
+              style={activeMonth === summary.month ? styles.monthTextActive : styles.monthText}>
+              {monthNames[summary.month]}
+            </ThemedText>
+            <ThemedText
+              type="small"
+              style={activeMonth === summary.month ? styles.monthValueActive : styles.monthValue}>
+              {formatMoney(summary.balance)}
+            </ThemedText>
+          </Pressable>
+        ))}
+      </ScrollView>
+
+      <MoloCard style={styles.quickAddCard}>
+        <View style={styles.formTabs}>
+          <Pressable
+            onPress={() => setEntryType('income')}
+            style={[styles.formTab, entryType === 'income' && styles.formTabActive]}>
+            <ThemedText
+              type="smallBold"
+              style={entryType === 'income' ? styles.formTabTextActive : styles.formTabText}>
+              Revenu
+            </ThemedText>
+          </Pressable>
+          <Pressable
+            onPress={() => setEntryType('expense')}
+            style={[styles.formTab, entryType === 'expense' && styles.formTabActive]}>
+            <ThemedText
+              type="smallBold"
+              style={entryType === 'expense' ? styles.formTabTextActive : styles.formTabText}>
+              Depense
+            </ThemedText>
+          </Pressable>
         </View>
+        <TextInput
+          value={entryName}
+          onChangeText={setEntryName}
+          placeholder="Nom"
+          placeholderTextColor={MoloColors.textFaint}
+          style={styles.input}
+        />
+        <TextInput
+          value={entryAmount}
+          onChangeText={setEntryAmount}
+          placeholder="Montant FCFA"
+          placeholderTextColor={MoloColors.textFaint}
+          inputMode="numeric"
+          style={styles.input}
+        />
+        <ActionButton label="Ajouter au budget" onPress={addEntry} />
+      </MoloCard>
 
-        <SectionHeader title="Mois budgetaire" detail="Apercu rapide du tableau." />
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.monthRail}>
-          {summaries.map((summary) => (
-            <Pressable
-              key={summary.month}
-              onPress={() => setActiveMonth(summary.month)}
-              style={[styles.monthChip, activeMonth === summary.month && styles.monthChipActive]}>
-              <ThemedText
-                type="smallBold"
-                style={activeMonth === summary.month ? styles.activeMonthText : styles.inactiveText}>
-                {monthNames[summary.month]}
-              </ThemedText>
-              <ThemedText
-                type="small"
-                style={[styles.mono, activeMonth === summary.month ? styles.activeMonthText : styles.inactiveText]}>
-                {formatMoney(summary.balance)}
-              </ThemedText>
-            </Pressable>
-          ))}
-        </ScrollView>
-
-        <MoloCard style={styles.quickAddCard}>
-          <View style={styles.segmented}>
-            <Pressable
-              onPress={() => setEntryType('income')}
-              style={[styles.segment, entryType === 'income' && styles.segmentActive]}>
-              <ThemedText
-                type="smallBold"
-                style={entryType === 'income' ? styles.activeMonthText : styles.inactiveText}>
-                Revenu
-              </ThemedText>
-            </Pressable>
-            <Pressable
-              onPress={() => setEntryType('expense')}
-              style={[styles.segment, entryType === 'expense' && styles.segmentActive]}>
-              <ThemedText
-                type="smallBold"
-                style={entryType === 'expense' ? styles.activeMonthText : styles.inactiveText}>
-                Depense
-              </ThemedText>
-            </Pressable>
-          </View>
-          <View style={isTablet ? styles.formRow : styles.formStack}>
-            <TextInput
-              value={entryName}
-              onChangeText={setEntryName}
-              placeholder="Nom"
-              placeholderTextColor="#9D29A2"
-              style={[styles.input, isTablet && styles.inputFlex]}
+      <View style={styles.balanceList}>
+        {monthEntries.slice(0, 4).map((entry) => {
+          const column = budgetColumns.find((item) => item.id === entry.columnId);
+          const isExpense = column?.impact === 'negative';
+          return (
+            <MetricRow
+              key={entry.id}
+              icon={isExpense ? '-' : '+'}
+              title={entry.name}
+              detail={column?.name ?? 'Budget'}
+              amount={`${isExpense ? '-' : '+'}${formatMoney(entry.amount)}`}
+              positive={!isExpense}
             />
-            <TextInput
-              value={entryAmount}
-              onChangeText={setEntryAmount}
-              placeholder="Montant FCFA"
-              placeholderTextColor="#9D29A2"
-              inputMode="numeric"
-              style={[styles.input, isTablet && styles.inputFlex]}
-            />
-          </View>
-          <ActionButton label="Ajouter au budget" onPress={addEntry} />
-        </MoloCard>
-
-        <SectionHeader title="Derniers mouvements" detail={`${monthEntries.length} lignes actives`} />
-        <View style={styles.menuPanel}>
-          {monthEntries.slice(0, 4).map((entry) => {
-            const column = budgetColumns.find((item) => item.id === entry.columnId);
-            const isExpense = column?.impact === 'negative';
-            return (
-              <MenuRow
-                key={entry.id}
-                title={entry.name}
-                detail={`${isExpense ? '-' : '+'}${formatMoney(entry.amount)}`}
-                icon={isExpense ? '-' : '+'}
-              />
-            );
-          })}
-        </View>
-      </ThemedView>
-    </ScrollView>
+          );
+        })}
+      </View>
+    </WalletScreen>
   );
 }
 
-function RoundAction({
-  label,
-  icon,
-  onPress,
-}: {
-  label: string;
-  icon: string;
-  onPress: () => void;
-}) {
+function QuickAction({ label, icon, onPress }: { label: string; icon: string; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} style={styles.roundAction}>
-      <View style={[styles.roundActionIcon, goldGradient]}>
-        <ThemedText type="smallBold" style={styles.roundActionIconText}>
+    <Pressable onPress={onPress} style={styles.quickAction}>
+      <View style={[styles.quickActionIcon, MoloGradients.chip]}>
+        <ThemedText type="smallBold" style={styles.quickActionIconText}>
           {icon}
         </ThemedText>
       </View>
-      <ThemedText type="small" style={styles.roundActionLabel}>
+      <ThemedText type="small" style={styles.quickActionLabel}>
         {label}
       </ThemedText>
     </Pressable>
   );
 }
 
-function MenuRow({ title, detail, icon }: { title: string; detail: string; icon: string }) {
+function MetricRow({
+  icon,
+  title,
+  detail,
+  amount,
+  positive,
+}: {
+  icon: string;
+  title: string;
+  detail: string;
+  amount: string;
+  positive?: boolean;
+}) {
   return (
-    <Pressable style={styles.menuRow}>
-      <View style={styles.menuIcon}>
-        <ThemedText type="smallBold" style={styles.menuIconText}>
-          {icon}
-        </ThemedText>
-      </View>
-      <View style={styles.menuText}>
-        <ThemedText type="smallBold" style={styles.menuTitle}>
+    <Pressable style={styles.metricRow}>
+      <IconBubble label={icon} />
+      <View style={styles.metricText}>
+        <ThemedText type="smallBold" style={styles.metricTitle}>
           {title}
         </ThemedText>
-        <ThemedText type="small" style={styles.menuDetail}>
+        <ThemedText type="small" style={styles.metricDetail}>
           {detail}
         </ThemedText>
       </View>
-      <ThemedText type="smallBold" style={styles.menuArrow}>
-        &gt;
+      <ThemedText type="smallBold" style={[styles.metricAmount, positive && styles.metricAmountPositive]}>
+        {amount}
       </ThemedText>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: {
-    flex: 1,
-    backgroundColor: '#A28F49',
+  heroCard: {
+    minHeight: 190,
+    borderRadius: MoloRadius.card,
+    padding: Spacing.four,
+    overflow: 'hidden',
+    justifyContent: 'space-between',
+    backgroundColor: MoloColors.purple900,
+    boxShadow: MoloShadow.floating,
   },
-  content: {
-    alignItems: 'center',
-    paddingHorizontal: Spacing.three,
-    minHeight: '100%',
-  },
-  backgroundTop: {
+  heroOrb: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 310,
-    backgroundColor: '#DCD6AF',
-  },
-  backgroundGlowOne: {
-    position: 'absolute',
-    top: 88,
-    right: -48,
+    right: -46,
+    bottom: -60,
     width: 180,
     height: 180,
     borderRadius: 90,
-    backgroundColor: 'rgba(238, 178, 245, 0.26)',
+    backgroundColor: 'rgba(255, 255, 255, 0.16)',
   },
-  backgroundGlowTwo: {
-    position: 'absolute',
-    top: 220,
-    left: -60,
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    backgroundColor: 'rgba(220, 214, 175, 0.18)',
+  heroMuted: {
+    color: 'rgba(255, 255, 255, 0.72)',
   },
-  phoneSurface: {
-    width: '100%',
-    borderRadius: 30,
-    padding: Spacing.three,
-    gap: Spacing.three,
-    backgroundColor: '#F8F7EE',
-    boxShadow: '0 24px 60px rgba(71, 10, 72, 0.24)',
+  heroText: {
+    color: MoloColors.text,
   },
-  header: {
+  heroAmount: {
+    color: MoloColors.text,
+    fontSize: 38,
+    lineHeight: 46,
+  },
+  heroMetaRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     justifyContent: 'space-between',
     gap: Spacing.three,
   },
-  headerMuted: {
-    color: '#6C226D',
+  heroMeta: {
+    gap: Spacing.half,
   },
-  headerTitle: {
-    color: '#470A48',
-    fontSize: 25,
-    lineHeight: 30,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-  },
-  avatar: {
-    width: 34,
-    height: 34,
+  growthPill: {
+    minHeight: 34,
     borderRadius: 17,
-    backgroundColor: '#EDEAD5',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  avatarText: {
-    color: '#470A48',
-  },
-  settingsButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    borderWidth: 1,
-    borderColor: '#F4D4FA',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-  },
-  settingsText: {
-    color: '#470A48',
-    transform: [{ rotate: '90deg' }],
-  },
-  portfolioCard: {
-    minHeight: 148,
-    borderRadius: 18,
-    padding: Spacing.three,
-    overflow: 'hidden',
-    gap: Spacing.one,
-  },
-  cardShine: {
-    position: 'absolute',
-    right: -28,
-    bottom: -54,
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    backgroundColor: 'rgba(253, 245, 254, 0.16)',
-  },
-  portfolioHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: Spacing.two,
-  },
-  cardMuted: {
-    color: '#F8F7EE',
-    opacity: 0.82,
-  },
-  balance: {
-    color: '#FFFFFF',
-    fontSize: 30,
-    lineHeight: 36,
-  },
-  monthBadge: {
-    alignSelf: 'flex-end',
-    minHeight: 30,
-    borderRadius: 15,
     paddingHorizontal: Spacing.three,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F4D4FA',
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
   },
-  monthBadgeText: {
-    color: '#6C226D',
+  growthText: {
+    color: MoloColors.text,
   },
-  quickActions: {
+  actionGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     gap: Spacing.two,
   },
-  roundAction: {
+  quickAction: {
     flex: 1,
     alignItems: 'center',
     gap: Spacing.two,
   },
-  roundActionIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+  quickActionIcon: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: MoloColors.panelRaised,
     borderWidth: 1,
-    borderColor: '#EDEAD5',
+    borderColor: MoloColors.strokeSoft,
   },
-  roundActionIconText: {
-    color: '#470A48',
+  quickActionIconText: {
+    color: MoloColors.text,
     fontSize: 18,
   },
-  roundActionLabel: {
-    color: '#470A48',
+  quickActionLabel: {
+    color: MoloColors.textMuted,
     textAlign: 'center',
   },
-  assistantBanner: {
-    minHeight: 76,
-    borderRadius: 16,
-    padding: Spacing.two,
+  infoStrip: {
+    minHeight: 64,
+    borderRadius: MoloRadius.tile,
+    paddingHorizontal: Spacing.two,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
+    backgroundColor: MoloColors.panel,
+    borderWidth: 1,
+    borderColor: MoloColors.stroke,
   },
-  assistantIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FAEAFD',
-  },
-  assistantIconText: {
-    color: '#470A48',
-  },
-  assistantCopy: {
+  infoCopy: {
     flex: 1,
   },
-  invertedText: {
-    color: '#FFFFFF',
+  infoTitle: {
+    color: MoloColors.text,
   },
-  bannerMuted: {
-    color: '#F8F7EE',
-    opacity: 0.82,
+  infoDetail: {
+    color: MoloColors.textMuted,
   },
-  bannerArrow: {
-    color: '#FFFFFF',
-    fontSize: 24,
+  chevron: {
+    color: MoloColors.textMuted,
+    fontSize: 18,
   },
-  menuPanel: {
-    borderRadius: 18,
-    overflow: 'hidden',
-    backgroundColor: '#FFFFFF',
+  segmented: {
+    minHeight: 48,
+    padding: Spacing.one,
+    borderRadius: 24,
+    flexDirection: 'row',
+    gap: Spacing.one,
+    backgroundColor: MoloColors.panel,
     borderWidth: 1,
-    borderColor: '#EDEAD5',
+    borderColor: MoloColors.stroke,
   },
-  menuRow: {
-    minHeight: 58,
+  segment: {
+    flex: 1,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  segmentActive: {
+    flex: 1,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: MoloColors.text,
+  },
+  segmentText: {
+    color: MoloColors.textMuted,
+  },
+  segmentActiveText: {
+    color: MoloColors.canvas,
+  },
+  balanceList: {
+    borderRadius: MoloRadius.card,
+    overflow: 'hidden',
+    backgroundColor: MoloColors.panel,
+    borderWidth: 1,
+    borderColor: MoloColors.stroke,
+  },
+  metricRow: {
+    minHeight: 74,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
     paddingHorizontal: Spacing.three,
     borderBottomWidth: 1,
-    borderBottomColor: '#EDEAD5',
+    borderBottomColor: MoloColors.stroke,
   },
-  menuIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FAEAFD',
-  },
-  menuIconText: {
-    color: '#470A48',
-  },
-  menuText: {
+  metricText: {
     flex: 1,
+    gap: 2,
   },
-  menuTitle: {
-    color: '#470A48',
+  metricTitle: {
+    color: MoloColors.text,
   },
-  menuDetail: {
-    color: '#822385',
+  metricDetail: {
+    color: MoloColors.textMuted,
   },
-  menuArrow: {
-    color: '#6C226D',
+  metricAmount: {
+    color: MoloColors.text,
+    fontVariant: ['tabular-nums'],
+  },
+  metricAmountPositive: {
+    color: MoloColors.success,
   },
   monthRail: {
     gap: Spacing.two,
     paddingRight: Spacing.three,
   },
   monthChip: {
-    width: 118,
-    minHeight: 68,
-    borderRadius: 16,
+    width: 120,
+    minHeight: 70,
+    borderRadius: MoloRadius.tile,
     padding: Spacing.two,
     justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: MoloColors.panel,
     borderWidth: 1,
-    borderColor: '#EDEAD5',
+    borderColor: MoloColors.stroke,
   },
   monthChipActive: {
-    backgroundColor: '#50412C',
-    borderColor: '#50412C',
+    backgroundColor: MoloColors.text,
   },
-  activeMonthText: {
-    color: '#FFFFFF',
+  monthText: {
+    color: MoloColors.textMuted,
   },
-  inactiveText: {
-    color: '#470A48',
+  monthTextActive: {
+    color: MoloColors.canvas,
   },
-  mono: {
+  monthValue: {
+    color: MoloColors.text,
+    fontVariant: ['tabular-nums'],
+  },
+  monthValueActive: {
+    color: MoloColors.canvas,
     fontVariant: ['tabular-nums'],
   },
   quickAddCard: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#EDEAD5',
     gap: Spacing.three,
   },
-  segmented: {
+  formTabs: {
     flexDirection: 'row',
     gap: Spacing.two,
   },
-  segment: {
+  formTab: {
     flex: 1,
-    minHeight: 46,
-    borderRadius: 14,
+    minHeight: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FAEAFD',
+    backgroundColor: MoloColors.panelSoft,
   },
-  segmentActive: {
-    backgroundColor: '#50412C',
+  formTabActive: {
+    backgroundColor: MoloColors.text,
   },
-  formStack: {
-    gap: Spacing.two,
+  formTabText: {
+    color: MoloColors.textMuted,
   },
-  formRow: {
-    flexDirection: 'row',
-    gap: Spacing.two,
+  formTabTextActive: {
+    color: MoloColors.canvas,
   },
   input: {
-    minHeight: 52,
-    borderRadius: 14,
+    minHeight: 54,
+    borderRadius: MoloRadius.tile,
     borderWidth: 1,
-    borderColor: '#F4D4FA',
+    borderColor: MoloColors.stroke,
     paddingHorizontal: Spacing.three,
     fontSize: 16,
-    color: '#470A48',
-    backgroundColor: '#FAEAFD',
-  },
-  inputFlex: {
-    flex: 1,
+    color: MoloColors.text,
+    backgroundColor: MoloColors.canvasSoft,
   },
 });

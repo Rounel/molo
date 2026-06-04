@@ -9,8 +9,8 @@ import {
 import { Pressable, View, StyleSheet } from 'react-native';
 
 import { ThemedText } from './themed-text';
-import { ThemedView } from './themed-view';
 
+import { MoloColors, MoloRadius, MoloShadow } from '@/constants/molo-design';
 import { Spacing } from '@/constants/theme';
 
 export default function AppTabs() {
@@ -37,13 +37,11 @@ export default function AppTabs() {
 export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
   return (
     <Pressable {...props} style={({ pressed }) => pressed && styles.pressed}>
-      <ThemedView
-        type={isFocused ? 'backgroundSelected' : 'backgroundElement'}
-        style={styles.tabButtonView}>
-        <ThemedText type="small" themeColor={isFocused ? 'text' : 'textSecondary'}>
+      <View style={[styles.tabButtonView, isFocused && styles.tabButtonActive]}>
+        <ThemedText type="smallBold" style={isFocused ? styles.tabTextActive : styles.tabText}>
           {children}
         </ThemedText>
-      </ThemedView>
+      </View>
     </Pressable>
   );
 }
@@ -51,14 +49,14 @@ export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps
 export function CustomTabList(props: TabListProps) {
   return (
     <View {...props} style={styles.tabListContainer}>
-      <ThemedView type="backgroundElement" style={styles.innerContainer}>
+      <View style={styles.innerContainer}>
         <ThemedText type="smallBold" style={styles.brandText}>
           Molo
         </ThemedText>
 
         {props.children}
 
-      </ThemedView>
+      </View>
     </View>
   );
 }
@@ -78,17 +76,21 @@ const styles = StyleSheet.create({
   innerContainer: {
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.three,
-    borderRadius: 8,
+    borderRadius: MoloRadius.card,
     flexDirection: 'row',
     alignItems: 'center',
     flexGrow: 1,
     gap: Spacing.two,
     maxWidth: 520,
     minHeight: 58,
-    boxShadow: '0 14px 36px rgba(15, 23, 42, 0.18)',
+    backgroundColor: MoloColors.panel,
+    borderWidth: 1,
+    borderColor: MoloColors.strokeSoft,
+    boxShadow: MoloShadow.floating,
   },
   brandText: {
     marginRight: 'auto',
+    color: MoloColors.text,
   },
   pressed: {
     opacity: 0.7,
@@ -100,6 +102,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: Spacing.one,
     paddingHorizontal: Spacing.two,
-    borderRadius: 8,
+    borderRadius: 18,
+    backgroundColor: 'transparent',
+  },
+  tabButtonActive: {
+    backgroundColor: MoloColors.text,
+  },
+  tabText: {
+    color: MoloColors.textMuted,
+  },
+  tabTextActive: {
+    color: MoloColors.canvas,
   },
 });

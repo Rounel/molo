@@ -1,16 +1,12 @@
 import { useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View, type ViewStyle } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Pressable, StyleSheet, View } from 'react-native';
 
-import { MoloCard, SectionHeader } from '@/components/molo-card';
+import { MoloCard } from '@/components/molo-card';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { BottomTabInset, Spacing } from '@/constants/theme';
+import { IconBubble, WalletHeader, WalletScreen } from '@/components/wallet-screen';
+import { MoloColors, MoloGradients, MoloRadius, MoloShadow } from '@/constants/molo-design';
+import { Spacing } from '@/constants/theme';
 import { formatMoney, monthNames, plannedPurchases, type PlannedPurchase } from '@/lib/budget';
-
-const purpleGradient = {
-  experimental_backgroundImage: 'linear-gradient(145deg, #C9BD80 0%, #A28F49 54%, #50412C 100%)',
-} as ViewStyle;
 
 const purchaseCategories: Record<string, string> = {
   laptop: 'Travail',
@@ -19,10 +15,6 @@ const purchaseCategories: Record<string, string> = {
 };
 
 export default function ShoppingListScreen() {
-  const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
-  const isTablet = width >= 720;
-  const shellWidth = isTablet ? 560 : 390;
   const pendingPurchases = useMemo(
     () => plannedPurchases.filter((purchase) => purchase.status !== 'realise'),
     [],
@@ -31,95 +23,83 @@ export default function ShoppingListScreen() {
   const nextPurchase = pendingPurchases
     .slice()
     .sort((a, b) => a.desiredMonth - b.desiredMonth || b.amount - a.amount)[0];
+  const buckets = buildMonthBuckets(pendingPurchases);
 
   return (
-    <ScrollView
-      style={styles.scroll}
-      contentInsetAdjustmentBehavior="automatic"
-      contentContainerStyle={[
-        styles.content,
-        {
-          paddingTop: insets.top + Spacing.three,
-          paddingBottom: insets.bottom + BottomTabInset + 96,
-        },
-      ]}>
-      <View style={styles.backgroundTop} />
-      <View style={styles.backgroundGlowOne} />
-      <View style={styles.backgroundGlowTwo} />
+    <WalletScreen maxTabletWidth={460}>
+      <WalletHeader eyebrow="Molo" title="Liste de courses" action={`${pendingPurchases.length} achats`} />
 
-      <ThemedView style={[styles.phoneSurface, { maxWidth: shellWidth }]}>
-        <View style={styles.header}>
+      <View style={[styles.totalCard, MoloGradients.heroDeep]}>
+        <View style={styles.totalOrb} />
+        <ThemedText type="small" style={styles.cardMuted}>
+          Cout total des achats
+        </ThemedText>
+        <ThemedText type="title" style={styles.totalAmount}>
+          {formatMoney(total)}
+        </ThemedText>
+        <View style={styles.nextRow}>
           <View>
-            <ThemedText type="small" style={styles.headerMuted}>
-              A planifier
+            <ThemedText type="small" style={styles.cardMuted}>
+              Prochain achat
             </ThemedText>
-            <ThemedText type="subtitle" style={styles.headerTitle}>
-              Liste de courses
-            </ThemedText>
-          </View>
-          <View style={styles.countBadge}>
-            <ThemedText type="smallBold" style={styles.countBadgeText}>
-              {pendingPurchases.length}
+            <ThemedText type="smallBold" style={styles.cardText}>
+              {nextPurchase.name} en {monthNames[nextPurchase.desiredMonth]}
             </ThemedText>
           </View>
-        </View>
-
-        <View style={[styles.totalCard, purpleGradient]}>
-          <View style={styles.cardShine} />
-          <ThemedText type="small" style={styles.cardMuted}>
-            Cout total des achats
-          </ThemedText>
-          <ThemedText type="title" style={styles.totalAmount}>
-            {formatMoney(total)}
-          </ThemedText>
-          <View style={styles.totalFooter}>
-            <View>
-              <ThemedText type="small" style={styles.cardMuted}>
-                Prochain achat
-              </ThemedText>
-              <ThemedText type="smallBold" style={styles.invertedText}>
-                {nextPurchase.name} en {monthNames[nextPurchase.desiredMonth]}
-              </ThemedText>
-            </View>
-            <View style={styles.totalPill}>
-              <ThemedText type="smallBold" style={styles.totalPillText}>
-                {formatMoney(nextPurchase.amount)}
-              </ThemedText>
-            </View>
+          <View style={styles.amountPill}>
+            <ThemedText type="smallBold" style={styles.amountPillText}>
+              {formatMoney(nextPurchase.amount)}
+            </ThemedText>
           </View>
         </View>
+      </View>
 
-        <View style={styles.monthStrip}>
-          {buildMonthBuckets(pendingPurchases).map((bucket) => (
-            <View key={bucket.month} style={styles.monthBucket}>
-              <ThemedText type="smallBold" style={styles.monthBucketMonth}>
-                {monthNames[bucket.month]}
-              </ThemedText>
-              <ThemedText type="small" style={styles.monthBucketAmount}>
-                {formatMoney(bucket.total)}
-              </ThemedText>
-            </View>
-          ))}
-        </View>
+      <View style={styles.monthGrid}>
+        {buckets.map((bucket) => (
+          <View key={bucket.month} style={styles.monthTile}>
+            <ThemedText type="smallBold" style={styles.monthTitle}>
+              {monthNames[bucket.month]}
+            </ThemedText>
+            <ThemedText type="small" style={styles.monthTotal}>
+              {formatMoney(bucket.total)}
+            </ThemedText>
+          </View>
+        ))}
+      </View>
 
-        <SectionHeader title="Articles a acheter" detail="Chaque ligne indique le mois prevu." />
-        <View style={styles.listPanel}>
-          {pendingPurchases.map((purchase) => (
-            <PurchaseRow key={purchase.id} purchase={purchase} />
-          ))}
-        </View>
-
-        <MoloCard style={styles.tipCard}>
-          <ThemedText type="smallBold" style={styles.tipTitle}>
-            Conseil budget
+      <View style={styles.segmented}>
+        <Pressable style={styles.segmentActive}>
+          <ThemedText type="smallBold" style={styles.segmentActiveText}>
+            A acheter
           </ThemedText>
-          <ThemedText type="small" style={styles.tipText}>
-            Commence par les achats haute priorite et reporte ceux qui font passer ton solde sous
-            ta marge de securite.
+        </Pressable>
+        <Pressable style={styles.segment}>
+          <ThemedText type="smallBold" style={styles.segmentText}>
+            Realises
           </ThemedText>
-        </MoloCard>
-      </ThemedView>
-    </ScrollView>
+        </Pressable>
+      </View>
+
+      <View style={styles.listPanel}>
+        {pendingPurchases.map((purchase) => (
+          <PurchaseRow key={purchase.id} purchase={purchase} />
+        ))}
+      </View>
+
+      <MoloCard style={styles.tipCard}>
+        <View style={styles.tipHeader}>
+          <IconBubble label="!" />
+          <View style={styles.tipCopy}>
+            <ThemedText type="smallBold" style={styles.tipTitle}>
+              Priorite budget
+            </ThemedText>
+            <ThemedText type="small" style={styles.tipText}>
+              Achats haute priorite d&apos;abord. Repousse ceux qui descendent sous ta marge de securite.
+            </ThemedText>
+          </View>
+        </View>
+      </MoloCard>
+    </WalletScreen>
   );
 }
 
@@ -128,11 +108,7 @@ function PurchaseRow({ purchase }: { purchase: PlannedPurchase }) {
 
   return (
     <Pressable style={styles.purchaseRow}>
-      <View style={styles.purchaseIcon}>
-        <ThemedText type="smallBold" style={styles.purchaseIconText}>
-          {purchase.name.slice(0, 1)}
-        </ThemedText>
-      </View>
+      <IconBubble label={purchase.name.slice(0, 1)} />
       <View style={styles.purchaseMain}>
         <ThemedText type="smallBold" style={styles.purchaseName}>
           {purchase.name}
@@ -146,10 +122,8 @@ function PurchaseRow({ purchase }: { purchase: PlannedPurchase }) {
         <ThemedText type="smallBold" style={styles.purchaseAmount}>
           {formatMoney(purchase.amount)}
         </ThemedText>
-        <View style={[styles.statusPill, purchase.status === 'risque' && styles.statusPillRisk]}>
-          <ThemedText
-            type="smallBold"
-            style={[styles.statusText, purchase.status === 'risque' && styles.statusTextRisk]}>
+        <View style={[styles.statusPill, purchase.status === 'risque' && styles.statusRisk]}>
+          <ThemedText type="smallBold" style={[styles.statusText, purchase.status === 'risque' && styles.statusTextRisk]}>
             {statusLabel}
           </ThemedText>
         </View>
@@ -170,183 +144,134 @@ function buildMonthBuckets(purchases: PlannedPurchase[]) {
 }
 
 const styles = StyleSheet.create({
-  scroll: {
-    flex: 1,
-    backgroundColor: '#A28F49',
-  },
-  content: {
-    alignItems: 'center',
-    paddingHorizontal: Spacing.three,
-    minHeight: '100%',
-  },
-  backgroundTop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 310,
-    backgroundColor: '#DCD6AF',
-  },
-  backgroundGlowOne: {
-    position: 'absolute',
-    top: 72,
-    left: -54,
-    width: 170,
-    height: 170,
-    borderRadius: 85,
-    backgroundColor: 'rgba(238, 178, 245, 0.24)',
-  },
-  backgroundGlowTwo: {
-    position: 'absolute',
-    top: 230,
-    right: -48,
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    backgroundColor: 'rgba(220, 214, 175, 0.18)',
-  },
-  phoneSurface: {
-    width: '100%',
-    borderRadius: 30,
-    padding: Spacing.three,
-    gap: Spacing.three,
-    backgroundColor: '#F8F7EE',
-    boxShadow: '0 24px 60px rgba(71, 10, 72, 0.24)',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.three,
-  },
-  headerMuted: {
-    color: '#6C226D',
-  },
-  headerTitle: {
-    color: '#470A48',
-    fontSize: 25,
-    lineHeight: 30,
-  },
-  countBadge: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#EDEAD5',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  countBadgeText: {
-    color: '#470A48',
-  },
   totalCard: {
-    minHeight: 170,
-    borderRadius: 18,
-    padding: Spacing.three,
+    minHeight: 190,
+    borderRadius: MoloRadius.card,
+    padding: Spacing.four,
     overflow: 'hidden',
     justifyContent: 'space-between',
+    backgroundColor: MoloColors.purple900,
+    boxShadow: MoloShadow.floating,
   },
-  cardShine: {
+  totalOrb: {
     position: 'absolute',
-    right: -36,
-    bottom: -52,
-    width: 154,
-    height: 154,
-    borderRadius: 77,
-    backgroundColor: 'rgba(253, 245, 254, 0.16)',
+    right: -48,
+    bottom: -62,
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
   },
   cardMuted: {
-    color: '#F8F7EE',
-    opacity: 0.82,
+    color: 'rgba(255, 255, 255, 0.72)',
+  },
+  cardText: {
+    color: MoloColors.text,
   },
   totalAmount: {
-    color: '#FFFFFF',
-    fontSize: 32,
-    lineHeight: 38,
+    color: MoloColors.text,
+    fontSize: 38,
+    lineHeight: 46,
   },
-  totalFooter: {
+  nextRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
     gap: Spacing.two,
   },
-  invertedText: {
-    color: '#FFFFFF',
-  },
-  totalPill: {
+  amountPill: {
     minHeight: 34,
     borderRadius: 17,
     paddingHorizontal: Spacing.three,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F4D4FA',
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
   },
-  totalPillText: {
-    color: '#6C226D',
+  amountPillText: {
+    color: MoloColors.text,
   },
-  monthStrip: {
+  monthGrid: {
     flexDirection: 'row',
     gap: Spacing.two,
   },
-  monthBucket: {
+  monthTile: {
     flex: 1,
     minHeight: 74,
-    borderRadius: 16,
+    borderRadius: MoloRadius.tile,
     padding: Spacing.two,
     justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: MoloColors.panel,
     borderWidth: 1,
-    borderColor: '#EDEAD5',
+    borderColor: MoloColors.stroke,
   },
-  monthBucketMonth: {
-    color: '#470A48',
+  monthTitle: {
+    color: MoloColors.text,
   },
-  monthBucketAmount: {
-    color: '#470A48',
+  monthTotal: {
+    color: MoloColors.textMuted,
     fontVariant: ['tabular-nums'],
   },
-  listPanel: {
-    borderRadius: 18,
-    overflow: 'hidden',
-    backgroundColor: '#FFFFFF',
+  segmented: {
+    minHeight: 48,
+    padding: Spacing.one,
+    borderRadius: 24,
+    flexDirection: 'row',
+    gap: Spacing.one,
+    backgroundColor: MoloColors.panel,
     borderWidth: 1,
-    borderColor: '#EDEAD5',
+    borderColor: MoloColors.stroke,
+  },
+  segment: {
+    flex: 1,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  segmentActive: {
+    flex: 1,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: MoloColors.text,
+  },
+  segmentText: {
+    color: MoloColors.textMuted,
+  },
+  segmentActiveText: {
+    color: MoloColors.canvas,
+  },
+  listPanel: {
+    borderRadius: MoloRadius.card,
+    overflow: 'hidden',
+    backgroundColor: MoloColors.panel,
+    borderWidth: 1,
+    borderColor: MoloColors.stroke,
   },
   purchaseRow: {
-    minHeight: 78,
+    minHeight: 80,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
     paddingHorizontal: Spacing.three,
     borderBottomWidth: 1,
-    borderBottomColor: '#EDEAD5',
-  },
-  purchaseIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FAEAFD',
-  },
-  purchaseIconText: {
-    color: '#470A48',
+    borderBottomColor: MoloColors.stroke,
   },
   purchaseMain: {
     flex: 1,
     gap: 2,
   },
   purchaseName: {
-    color: '#470A48',
+    color: MoloColors.text,
   },
   purchaseMeta: {
-    color: '#822385',
+    color: MoloColors.textMuted,
   },
   purchaseSide: {
     alignItems: 'flex-end',
     gap: Spacing.one,
   },
   purchaseAmount: {
-    color: '#470A48',
+    color: MoloColors.text,
     fontVariant: ['tabular-nums'],
   },
   statusPill: {
@@ -355,26 +280,33 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.two,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F4D4FA',
+    backgroundColor: MoloColors.panelSoft,
   },
-  statusPillRisk: {
-    backgroundColor: '#EDEAD5',
+  statusRisk: {
+    backgroundColor: '#3A1D29',
   },
   statusText: {
-    color: '#6C226D',
+    color: MoloColors.textMuted,
     fontSize: 12,
   },
   statusTextRisk: {
-    color: '#50412C',
+    color: MoloColors.danger,
   },
   tipCard: {
-    backgroundColor: '#FAEAFD',
-    borderColor: '#F4D4FA',
+    gap: Spacing.three,
+  },
+  tipHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+  },
+  tipCopy: {
+    flex: 1,
   },
   tipTitle: {
-    color: '#470A48',
+    color: MoloColors.text,
   },
   tipText: {
-    color: '#6C226D',
+    color: MoloColors.textMuted,
   },
 });

@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, type PressableProps, type ViewProps } from 'reac
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { MoloColors, MoloRadius, MoloShadow } from '@/constants/molo-design';
 import { Spacing } from '@/constants/theme';
 
 type CardProps = ViewProps & {
@@ -10,24 +11,24 @@ type CardProps = ViewProps & {
 
 const toneStyles = {
   plain: {
-    lightColor: '#FFFFFF',
-    darkColor: '#16181D',
-    borderColor: '#ECEEF2',
+    lightColor: MoloColors.panel,
+    darkColor: MoloColors.panel,
+    borderColor: MoloColors.stroke,
   },
   mint: {
-    lightColor: '#EAF8F1',
-    darkColor: '#123229',
-    borderColor: '#BFE9D2',
+    lightColor: '#162A27',
+    darkColor: '#162A27',
+    borderColor: '#21463D',
   },
   ink: {
-    lightColor: '#121826',
-    darkColor: '#0D111B',
-    borderColor: '#273047',
+    lightColor: MoloColors.panelRaised,
+    darkColor: MoloColors.panelRaised,
+    borderColor: MoloColors.strokeSoft,
   },
   coral: {
-    lightColor: '#FFF0E8',
-    darkColor: '#3A2018',
-    borderColor: '#FFD2BC',
+    lightColor: '#2D1D25',
+    darkColor: '#2D1D25',
+    borderColor: '#563143',
   },
 };
 
@@ -85,33 +86,33 @@ export function SectionHeader({ title, detail }: { title: string; detail?: strin
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 8,
+    borderRadius: MoloRadius.tile,
     borderWidth: 1,
     padding: 18,
     gap: Spacing.two,
-    boxShadow: '0 12px 32px rgba(15, 23, 42, 0.08)',
+    boxShadow: MoloShadow.panel,
   },
   button: {
     minHeight: 50,
-    borderRadius: 8,
+    borderRadius: 25,
     paddingHorizontal: Spacing.three,
     alignItems: 'center',
     justifyContent: 'center',
   },
   primaryButton: {
-    backgroundColor: '#111827',
+    backgroundColor: MoloColors.text,
   },
   secondaryButton: {
-    backgroundColor: '#EDF2F7',
+    backgroundColor: MoloColors.panelSoft,
   },
   dangerButton: {
-    backgroundColor: '#FFE4DC',
+    backgroundColor: '#3A1D29',
   },
   primaryButtonText: {
-    color: '#FFFFFF',
+    color: MoloColors.canvas,
   },
   secondaryButtonText: {
-    color: '#111827',
+    color: MoloColors.text,
   },
   pressed: {
     opacity: 0.72,

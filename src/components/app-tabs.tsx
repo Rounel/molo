@@ -1,6 +1,7 @@
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import { useColorScheme } from 'react-native';
 
+import { MoloColors } from '@/constants/molo-design';
 import { Colors } from '@/constants/theme';
 
 export default function AppTabs() {
@@ -9,8 +10,8 @@ export default function AppTabs() {
 
   return (
     <NativeTabs
-      backgroundColor={colors.background}
-      indicatorColor={colors.backgroundElement}
+      backgroundColor={MoloColors.panel}
+      indicatorColor={MoloColors.text}
       labelStyle={{ selected: { color: colors.text } }}>
       <NativeTabs.Trigger name="index">
         <NativeTabs.Trigger.Label>Budget</NativeTabs.Trigger.Label>
