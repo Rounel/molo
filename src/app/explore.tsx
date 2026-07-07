@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { ActionButton, MoloCard } from '@/components/molo-card';
+import { MoloSymbol } from '@/components/molo-symbol';
 import { ThemedText } from '@/components/themed-text';
 import { IconBubble, WalletHeader, WalletScreen } from '@/components/wallet-screen';
 import { MoloColors, MoloGradients, MoloRadius, MoloShadow } from '@/constants/molo-design';
@@ -9,12 +10,12 @@ import { Spacing } from '@/constants/theme';
 import {
   buildMonthlySummaries,
   budgetColumns,
-  formatMoney,
   getPurchaseAdvice,
   initialEntries,
   monthNames,
   plannedPurchases,
 } from '@/lib/budget';
+import { useMoney } from '@/lib/currency';
 
 const voiceCommands = [
   {
@@ -41,26 +42,35 @@ export default function AssistantScreen() {
   const [selectedCommand, setSelectedCommand] = useState(voiceCommands[0]);
   const [confirmed, setConfirmed] = useState(false);
   const [question, setQuestion] = useState('Quand puis-je acheter un ordinateur a 800 000 FCFA ?');
+  const money = useMoney();
   const summaries = useMemo(() => buildMonthlySummaries(initialEntries, budgetColumns), []);
   const laptopAdvice = getPurchaseAdvice(plannedPurchases[0], summaries);
 
   return (
     <WalletScreen maxTabletWidth={460}>
-      <WalletHeader eyebrow="Molo IA" title="Assistant vocal" action="Validation" />
+      <WalletHeader title="Molo" actionIcon="more" actionHref="/settings" />
 
       <View style={[styles.recorderCard, MoloGradients.hero]}>
-        <View style={styles.recorderTop}>
-          <IconBubble label="AI" large />
-          <View style={styles.recorderCopy}>
-            <ThemedText type="subtitle" style={styles.recorderTitle}>
-              Parle, Molo prepare l&apos;action.
-            </ThemedText>
-            <ThemedText type="small" style={styles.recorderDetail}>
-              Rien n&apos;est applique sans confirmation.
-            </ThemedText>
-          </View>
-        </View>
-        <ActionButton label="Simuler une transcription" variant="secondary" onPress={() => setConfirmed(false)} />
+        <View style={styles.waveOne} />
+        <View style={styles.waveTwo} />
+        <ThemedText type="subtitle" style={styles.recorderTitle}>
+          Assistant IA
+        </ThemedText>
+        <ThemedText type="smallBold" style={styles.recorderLead}>
+          Parle, Molo prepare l&apos;action.
+        </ThemedText>
+        <ThemedText type="small" style={styles.recorderDetail}>
+          La modification reste en attente tant que tu ne confirmes pas.
+        </ThemedText>
+      </View>
+
+      <View style={styles.sectionHeader}>
+        <ThemedText type="smallBold" style={styles.cardTitle}>
+          Commandes vocales
+        </ThemedText>
+        <ThemedText type="small" style={styles.cardMeta}>
+          Aucune modification sans validation.
+        </ThemedText>
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.commandRail}>
@@ -75,26 +85,24 @@ export default function AssistantScreen() {
             <ThemedText
               type="smallBold"
               style={selectedCommand.id === command.id ? styles.commandTextActive : styles.commandText}>
-              {command.intent}
+              {command.id === 'repair'
+                ? 'create_expense'
+                : command.id === 'freelance'
+                  ? 'create_income'
+                  : 'create_purchase'}
             </ThemedText>
           </Pressable>
         ))}
       </ScrollView>
 
       <MoloCard style={styles.transcriptionCard}>
-        <View style={styles.cardHeaderRow}>
-          <ThemedText type="smallBold" style={styles.cardTitle}>
-            Transcription
-          </ThemedText>
-          <ThemedText type="small" style={styles.cardMeta}>
-            audio simule
-          </ThemedText>
-        </View>
+        <ThemedText type="small" style={styles.cardMeta}>
+          Transcription
+        </ThemedText>
         <ThemedText type="smallBold" style={styles.transcriptionText}>
           {selectedCommand.text}
         </ThemedText>
-        <View style={styles.proposalBox}>
-          <IconBubble label="?" />
+        <View style={[styles.proposalBox, MoloGradients.heroDeep]}>
           <View style={styles.proposalCopy}>
             <ThemedText type="smallBold" style={styles.cardTitle}>
               Action proposee
@@ -118,79 +126,91 @@ export default function AssistantScreen() {
         )}
       </MoloCard>
 
-      <MoloCard style={styles.adviceCard}>
-        <View style={styles.cardHeaderRow}>
-          <ThemedText type="smallBold" style={styles.cardTitle}>
-            Conseil d&apos;achat
-          </ThemedText>
-          <ThemedText type="small" style={styles.cardMeta}>
-            IA + regles
-          </ThemedText>
+      <MoloCard style={styles.voiceInputCard}>
+        <View style={styles.waveMeter}>
+          {Array.from({ length: 28 }).map((_, index) => (
+            <View key={index} style={[styles.waveBar, { height: 8 + (index % 5) * 3 }]} />
+          ))}
         </View>
         <TextInput
           value={question}
           onChangeText={setQuestion}
-          multiline
-          placeholder="Pose une question budgetaire"
+          placeholder="Parle ou ecris ta commande..."
           placeholderTextColor={MoloColors.textFaint}
-          style={styles.textArea}
+          style={styles.voiceInput}
         />
-        <View style={styles.answerBox}>
-          <ThemedText type="smallBold" style={styles.cardTitle}>
-            Recommandation
-          </ThemedText>
-          <ThemedText type="small" style={styles.cardMeta}>
-            Tu peux viser {monthNames[laptopAdvice.recommendedMonth]} pour l&apos;ordinateur. Mets
-            de cote {formatMoney(laptopAdvice.monthlySaving)} par mois pour garder une marge.
-          </ThemedText>
-        </View>
+        <Pressable style={[styles.micButton, MoloGradients.purpleButton]} onPress={() => setConfirmed(false)}>
+          <MoloSymbol name="mic" size={20} />
+        </Pressable>
       </MoloCard>
 
-      <View style={styles.endpointPanel}>
-        {[
-          'Transcription audio',
-          'Interpretation intention',
-          'Validation utilisateur',
-          'Simulation achat',
-        ].map((item) => (
-          <View key={item} style={styles.endpointRow}>
-            <IconBubble label=">" />
-            <ThemedText type="smallBold" style={styles.endpointText}>
-              {item}
+      <MoloCard style={styles.adviceCard}>
+        <View style={styles.cardHeaderRow}>
+          <IconBubble icon="ai" active />
+          <View style={styles.proposalCopy}>
+            <ThemedText type="smallBold" style={styles.cardTitle}>
+              Conseil d&apos;achat
+            </ThemedText>
+            <ThemedText type="small" style={styles.cardMeta}>
+              Tu peux viser {monthNames[laptopAdvice.recommendedMonth]} pour l&apos;ordinateur. Mets de cote{' '}
+              {money(laptopAdvice.monthlySaving)} par mois pour garder une marge.
             </ThemedText>
           </View>
-        ))}
-      </View>
+        </View>
+      </MoloCard>
     </WalletScreen>
   );
 }
 
 const styles = StyleSheet.create({
   recorderCard: {
-    minHeight: 202,
+    minHeight: 204,
     borderRadius: MoloRadius.card,
     padding: Spacing.four,
     justifyContent: 'space-between',
     overflow: 'hidden',
     backgroundColor: MoloColors.purple900,
     boxShadow: MoloShadow.floating,
-  },
-  recorderTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three,
-  },
-  recorderCopy: {
-    flex: 1,
-    gap: Spacing.one,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
   },
   recorderTitle: {
     color: MoloColors.text,
-    fontSize: 23,
-    lineHeight: 29,
+    fontSize: 29,
+    lineHeight: 36,
+  },
+  recorderLead: {
+    color: MoloColors.text,
   },
   recorderDetail: {
     color: 'rgba(255, 255, 255, 0.75)',
+    maxWidth: 250,
+    lineHeight: 21,
+  },
+  waveOne: {
+    position: 'absolute',
+    right: -10,
+    bottom: 28,
+    width: 180,
+    height: 74,
+    borderRadius: 70,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.20)',
+    transform: [{ rotate: '-16deg' }],
+  },
+  waveTwo: {
+    position: 'absolute',
+    right: -20,
+    bottom: 20,
+    width: 210,
+    height: 54,
+    borderRadius: 60,
+    borderWidth: 1,
+    borderColor: 'rgba(208, 67, 221, 0.42)',
+    transform: [{ rotate: '-12deg' }],
+  },
+  sectionHeader: {
+    gap: Spacing.half,
   },
   commandRail: {
     gap: Spacing.two,
@@ -198,7 +218,7 @@ const styles = StyleSheet.create({
   },
   commandChip: {
     minHeight: 46,
-    minWidth: 112,
+    minWidth: 120,
     borderRadius: 23,
     paddingHorizontal: Spacing.three,
     alignItems: 'center',
@@ -208,16 +228,18 @@ const styles = StyleSheet.create({
     borderColor: MoloColors.stroke,
   },
   commandChipActive: {
-    backgroundColor: MoloColors.text,
+    backgroundColor: MoloColors.purple700,
+    borderColor: MoloColors.purple500,
   },
   commandText: {
     color: MoloColors.textMuted,
   },
   commandTextActive: {
-    color: MoloColors.canvas,
+    color: MoloColors.text,
   },
   transcriptionCard: {
     gap: Spacing.three,
+    backgroundColor: 'rgba(18, 20, 31, 0.90)',
   },
   cardHeaderRow: {
     flexDirection: 'row',
@@ -233,18 +255,17 @@ const styles = StyleSheet.create({
   },
   transcriptionText: {
     color: MoloColors.text,
-    lineHeight: 22,
+    lineHeight: 23,
+    fontSize: 16,
   },
   proposalBox: {
-    minHeight: 72,
+    minHeight: 156,
     borderRadius: MoloRadius.tile,
-    padding: Spacing.two,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    backgroundColor: MoloColors.canvasSoft,
+    padding: Spacing.three,
+    justifyContent: 'space-between',
+    backgroundColor: MoloColors.purple950,
     borderWidth: 1,
-    borderColor: MoloColors.stroke,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   proposalCopy: {
     flex: 1,
@@ -269,41 +290,41 @@ const styles = StyleSheet.create({
   adviceCard: {
     gap: Spacing.three,
   },
-  textArea: {
-    minHeight: 110,
-    borderRadius: MoloRadius.tile,
-    borderWidth: 1,
-    borderColor: MoloColors.stroke,
-    padding: Spacing.three,
-    fontSize: 16,
-    lineHeight: 22,
-    color: MoloColors.text,
-    backgroundColor: MoloColors.canvasSoft,
-    textAlignVertical: 'top',
-  },
-  answerBox: {
-    borderRadius: MoloRadius.tile,
-    backgroundColor: MoloColors.canvasSoft,
-    borderWidth: 1,
-    borderColor: MoloColors.stroke,
-    padding: Spacing.three,
-    gap: Spacing.one,
-  },
-  endpointPanel: {
+  voiceInputCard: {
+    minHeight: 76,
     borderRadius: MoloRadius.card,
-    overflow: 'hidden',
-    backgroundColor: MoloColors.panel,
-    borderWidth: 1,
-    borderColor: MoloColors.stroke,
-  },
-  endpointRow: {
-    minHeight: 62,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-    paddingHorizontal: Spacing.three,
-    borderBottomWidth: 1,
-    borderBottomColor: MoloColors.stroke,
+    backgroundColor: 'rgba(18, 20, 31, 0.92)',
+  },
+  waveMeter: {
+    width: 104,
+    height: 34,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    overflow: 'hidden',
+  },
+  waveBar: {
+    width: 2,
+    borderRadius: 2,
+    backgroundColor: MoloColors.purple700,
+    opacity: 0.75,
+  },
+  voiceInput: {
+    flex: 1,
+    color: MoloColors.text,
+    fontSize: 14,
+  },
+  micButton: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: MoloColors.purple700,
+    boxShadow: MoloShadow.glow,
   },
   endpointText: {
     color: MoloColors.text,

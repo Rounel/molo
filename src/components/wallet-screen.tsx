@@ -1,8 +1,10 @@
-import { ScrollView, StyleSheet, useWindowDimensions, View, type ViewProps } from 'react-native';
+import { Link, type Href } from 'expo-router';
+import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View, type ViewProps } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
-import { MoloColors, MoloGradients, MoloRadius } from '@/constants/molo-design';
+import { MoloSymbol, type MoloSymbolName } from '@/components/molo-symbol';
+import { MoloColors, MoloGradients, MoloShadow } from '@/constants/molo-design';
 import { BottomTabInset, Spacing } from '@/constants/theme';
 
 type WalletScreenProps = ViewProps & {
@@ -21,11 +23,11 @@ export function WalletScreen({ children, maxTabletWidth = 430, style }: WalletSc
       contentContainerStyle={[
         styles.content,
         {
-          paddingTop: insets.top + Spacing.three,
-          paddingBottom: insets.bottom + BottomTabInset + 96,
+          paddingTop: insets.top + Spacing.four,
+          paddingBottom: insets.bottom + BottomTabInset + 112,
         },
       ]}>
-      <View style={[styles.topGlow, MoloGradients.hero]} />
+      <View style={styles.topShadow} />
       <View style={styles.glowOne} />
       <View style={styles.glowTwo} />
       <View style={[styles.shell, { maxWidth: shellWidth }, style]}>{children}</View>
@@ -34,48 +36,50 @@ export function WalletScreen({ children, maxTabletWidth = 430, style }: WalletSc
 }
 
 export function WalletHeader({
-  eyebrow,
   title,
-  action,
+  actionHref,
+  actionIcon = 'more',
 }: {
-  eyebrow: string;
   title: string;
-  action?: string;
+  actionHref?: Href;
+  actionIcon?: MoloSymbolName;
 }) {
+  const action = (
+    <Pressable style={({ pressed }) => [styles.headerIcon, MoloGradients.chip, pressed && styles.pressed]}>
+      <MoloSymbol name={actionIcon} size={18} />
+    </Pressable>
+  );
+
   return (
     <View style={styles.header}>
-      <View>
-        <ThemedText type="small" style={styles.eyebrow}>
-          {eyebrow}
-        </ThemedText>
-        <ThemedText type="smallBold" style={styles.title}>
-          {title}
-        </ThemedText>
-      </View>
-      <View style={styles.headerActions}>
-        <View style={styles.headerIcon}>
-          <ThemedText type="smallBold" style={styles.headerIconText}>
-            ?
-          </ThemedText>
-        </View>
-        {action ? (
-          <View style={styles.actionPill}>
-            <ThemedText type="smallBold" style={styles.actionText}>
-              {action}
-            </ThemedText>
-          </View>
-        ) : null}
-      </View>
+      <ThemedText type="subtitle" style={styles.title}>
+        {title}
+      </ThemedText>
+      {actionHref ? <Link href={actionHref} asChild>{action}</Link> : action}
     </View>
   );
 }
 
-export function IconBubble({ label, large = false }: { label: string; large?: boolean }) {
+export function IconBubble({
+  label,
+  icon,
+  large = false,
+  active = false,
+}: {
+  label?: string;
+  icon?: MoloSymbolName;
+  large?: boolean;
+  active?: boolean;
+}) {
   return (
-    <View style={[styles.iconBubble, large && styles.iconBubbleLarge]}>
-      <ThemedText type="smallBold" style={styles.iconBubbleText}>
-        {label}
-      </ThemedText>
+    <View style={[styles.iconBubble, active && styles.iconBubbleActive, large && styles.iconBubbleLarge]}>
+      {icon ? (
+        <MoloSymbol name={icon} size={large ? 22 : 18} />
+      ) : (
+        <ThemedText type="smallBold" style={styles.iconBubbleText}>
+          {label}
+        </ThemedText>
+      )}
     </View>
   );
 }
@@ -88,98 +92,82 @@ const styles = StyleSheet.create({
   content: {
     alignItems: 'center',
     minHeight: '100%',
-    paddingHorizontal: Spacing.three,
+    paddingHorizontal: 20,
   },
-  topGlow: {
+  topShadow: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    height: 245,
-    opacity: 0.95,
-    backgroundColor: MoloColors.purple900,
+    height: 240,
+    backgroundColor: '#0B0C14',
   },
   glowOne: {
     position: 'absolute',
-    top: 74,
-    right: -56,
-    width: 190,
-    height: 190,
-    borderRadius: 95,
-    backgroundColor: 'rgba(208, 67, 221, 0.18)',
+    top: 108,
+    right: -92,
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: 'rgba(208, 67, 221, 0.20)',
   },
   glowTwo: {
     position: 'absolute',
-    top: 230,
-    left: -70,
-    width: 170,
-    height: 170,
-    borderRadius: 85,
-    backgroundColor: 'rgba(244, 212, 250, 0.10)',
+    top: 420,
+    left: -120,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: 'rgba(157, 41, 162, 0.12)',
   },
   shell: {
     width: '100%',
     gap: Spacing.three,
   },
   header: {
-    minHeight: 46,
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: Spacing.three,
-  },
-  eyebrow: {
-    color: MoloColors.textMuted,
+    gap: Spacing.two,
   },
   title: {
     color: MoloColors.text,
-    fontSize: 17,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
+    fontSize: 26,
+    lineHeight: 32,
   },
   headerIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 42,
+    height: 42,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: MoloColors.purple900,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.16)',
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    boxShadow: MoloShadow.glow,
   },
-  headerIconText: {
-    color: MoloColors.text,
-  },
-  actionPill: {
-    minHeight: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: Spacing.three,
-    backgroundColor: 'rgba(255, 255, 255, 0.14)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.16)',
-  },
-  actionText: {
-    color: MoloColors.text,
+  pressed: {
+    opacity: 0.72,
   },
   iconBubble: {
     width: 40,
     height: 40,
-    borderRadius: MoloRadius.icon,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: MoloColors.panelSoft,
     borderWidth: 1,
     borderColor: MoloColors.strokeSoft,
   },
+  iconBubbleActive: {
+    backgroundColor: MoloColors.purple900,
+    borderColor: MoloColors.purple700,
+  },
   iconBubbleLarge: {
     width: 54,
     height: 54,
-    borderRadius: 20,
+    borderRadius: 18,
   },
   iconBubbleText: {
     color: MoloColors.text,

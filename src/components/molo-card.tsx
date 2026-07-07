@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, type PressableProps, type ViewProps } from 'reac
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { MoloColors, MoloRadius, MoloShadow } from '@/constants/molo-design';
+import { MoloColors, MoloGradients, MoloRadius, MoloShadow } from '@/constants/molo-design';
 import { Spacing } from '@/constants/theme';
 
 type CardProps = ViewProps & {
@@ -56,7 +56,7 @@ export function ActionButton({ label, variant = 'primary', style, ...props }: Ac
       {...props}
       style={(state) => [
         styles.button,
-        variant === 'primary' && styles.primaryButton,
+        variant === 'primary' && [styles.primaryButton, MoloGradients.purpleButton],
         variant === 'secondary' && styles.secondaryButton,
         variant === 'danger' && styles.dangerButton,
         state.pressed && styles.pressed,
@@ -86,9 +86,9 @@ export function SectionHeader({ title, detail }: { title: string; detail?: strin
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: MoloRadius.tile,
+    borderRadius: MoloRadius.card,
     borderWidth: 1,
-    padding: 18,
+    padding: 16,
     gap: Spacing.two,
     boxShadow: MoloShadow.panel,
   },
@@ -100,7 +100,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   primaryButton: {
-    backgroundColor: MoloColors.text,
+    backgroundColor: MoloColors.purple700,
+    boxShadow: MoloShadow.glow,
   },
   secondaryButton: {
     backgroundColor: MoloColors.panelSoft,
@@ -109,7 +110,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#3A1D29',
   },
   primaryButtonText: {
-    color: MoloColors.canvas,
+    color: MoloColors.text,
   },
   secondaryButtonText: {
     color: MoloColors.text,

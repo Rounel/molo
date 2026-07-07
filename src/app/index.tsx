@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { ActionButton, MoloCard } from '@/components/molo-card';
+import { MoloSymbol, type MoloSymbolName } from '@/components/molo-symbol';
 import { ThemedText } from '@/components/themed-text';
 import { IconBubble, WalletHeader, WalletScreen } from '@/components/wallet-screen';
 import { MoloColors, MoloGradients, MoloRadius, MoloShadow } from '@/constants/molo-design';
@@ -9,13 +10,13 @@ import { Spacing } from '@/constants/theme';
 import {
   budgetColumns,
   buildMonthlySummaries,
-  formatMoney,
   getPurchaseAdvice,
   initialEntries,
   monthNames,
   plannedPurchases,
   type BudgetEntry,
 } from '@/lib/budget';
+import { useMoney } from '@/lib/currency';
 
 export default function DashboardScreen() {
   const [entries, setEntries] = useState(initialEntries);
@@ -23,6 +24,7 @@ export default function DashboardScreen() {
   const [entryName, setEntryName] = useState('Gombo');
   const [entryAmount, setEntryAmount] = useState('75000');
   const [entryType, setEntryType] = useState<'income' | 'expense'>('income');
+  const money = useMoney();
 
   const summaries = useMemo(() => buildMonthlySummaries(entries, budgetColumns), [entries]);
   const current = summaries[activeMonth];
@@ -55,15 +57,16 @@ export default function DashboardScreen() {
 
   return (
     <WalletScreen>
-      <WalletHeader eyebrow="Molo" title={`Budget de ${monthNames[activeMonth]}`} action="Profil" />
+      <WalletHeader title="Molo" actionIcon="more" actionHref="/settings" />
 
       <View style={[styles.heroCard, MoloGradients.hero]}>
         <View style={styles.heroOrb} />
+        <View style={styles.heroLine} />
         <ThemedText type="small" style={styles.heroMuted}>
           Solde mensuel
         </ThemedText>
         <ThemedText type="title" style={styles.heroAmount}>
-          {formatMoney(current.balance)}
+          {money(current.balance)}
         </ThemedText>
         <View style={styles.heroMetaRow}>
           <View style={styles.heroMeta}>
@@ -71,7 +74,7 @@ export default function DashboardScreen() {
               Epargne prevue
             </ThemedText>
             <ThemedText type="smallBold" style={styles.heroText}>
-              {formatMoney(current.savings)}
+              {money(current.savings)}
             </ThemedText>
           </View>
           <View style={styles.growthPill}>
@@ -83,25 +86,23 @@ export default function DashboardScreen() {
       </View>
 
       <View style={styles.actionGrid}>
-        <QuickAction label="Revenu" icon="+" onPress={() => setEntryType('income')} />
-        <QuickAction label="Depense" icon="-" onPress={() => setEntryType('expense')} />
-        <QuickAction label="Epargne" icon="%" onPress={() => setActiveMonth(8)} />
-        <QuickAction label="Mois" icon="v" onPress={() => setActiveMonth((value) => (value + 1) % 12)} />
+        <QuickAction label="Revenus" icon="income" onPress={() => setEntryType('income')} />
+        <QuickAction label="Depenses" icon="expense" onPress={() => setEntryType('expense')} />
+        <QuickAction label="Epargne" icon="saving" onPress={() => setActiveMonth(8)} />
+        <QuickAction label="Mois" icon="calendar" onPress={() => setActiveMonth((value) => (value + 1) % 12)} />
       </View>
 
       <View style={styles.infoStrip}>
-        <IconBubble label="AI" />
+        <IconBubble icon="ai" active />
         <View style={styles.infoCopy}>
           <ThemedText type="smallBold" style={styles.infoTitle}>
-            Assistant budget
+            Assistant IA
           </ThemedText>
           <ThemedText type="small" style={styles.infoDetail}>
             Achat confortable en {monthNames[advice.recommendedMonth]}
           </ThemedText>
         </View>
-        <ThemedText type="smallBold" style={styles.chevron}>
-          &gt;
-        </ThemedText>
+        <MoloSymbol name="down" size={18} color={MoloColors.textMuted} />
       </View>
 
       <View style={styles.segmented}>
@@ -118,9 +119,14 @@ export default function DashboardScreen() {
       </View>
 
       <View style={styles.balanceList}>
-        <MetricRow icon="+" title="Revenus" detail="Total du mois" amount={formatMoney(current.income)} positive />
-        <MetricRow icon="-" title="Depenses" detail="Fixes, variables, surprises" amount={formatMoney(current.expenses)} />
-        <MetricRow icon="%" title="Epargne" detail="Objectif securite" amount={formatMoney(current.savings)} positive />
+        <MetricRow icon="income" title="Revenus" detail="Total du mois" amount={money(current.income)} positive />
+        <MetricRow
+          icon="expense"
+          title="Depenses"
+          detail="Total du mois"
+          amount={money(current.expenses)}
+        />
+        <MetricRow icon="saving" title="Epargne" detail="Total du mois" amount={money(current.savings)} positive />
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.monthRail}>
@@ -137,7 +143,7 @@ export default function DashboardScreen() {
             <ThemedText
               type="small"
               style={activeMonth === summary.month ? styles.monthValueActive : styles.monthValue}>
-              {formatMoney(summary.balance)}
+              {money(summary.balance)}
             </ThemedText>
           </Pressable>
         ))}
@@ -189,10 +195,10 @@ export default function DashboardScreen() {
           return (
             <MetricRow
               key={entry.id}
-              icon={isExpense ? '-' : '+'}
+              icon={isExpense ? 'expense' : 'income'}
               title={entry.name}
               detail={column?.name ?? 'Budget'}
-              amount={`${isExpense ? '-' : '+'}${formatMoney(entry.amount)}`}
+              amount={`${isExpense ? '-' : '+'}${money(entry.amount)}`}
               positive={!isExpense}
             />
           );
@@ -202,13 +208,11 @@ export default function DashboardScreen() {
   );
 }
 
-function QuickAction({ label, icon, onPress }: { label: string; icon: string; onPress: () => void }) {
+function QuickAction({ label, icon, onPress }: { label: string; icon: MoloSymbolName; onPress: () => void }) {
   return (
     <Pressable onPress={onPress} style={styles.quickAction}>
       <View style={[styles.quickActionIcon, MoloGradients.chip]}>
-        <ThemedText type="smallBold" style={styles.quickActionIconText}>
-          {icon}
-        </ThemedText>
+        <MoloSymbol name={icon} size={24} />
       </View>
       <ThemedText type="small" style={styles.quickActionLabel}>
         {label}
@@ -224,7 +228,7 @@ function MetricRow({
   amount,
   positive,
 }: {
-  icon: string;
+  icon: MoloSymbolName;
   title: string;
   detail: string;
   amount: string;
@@ -232,7 +236,7 @@ function MetricRow({
 }) {
   return (
     <Pressable style={styles.metricRow}>
-      <IconBubble label={icon} />
+      <IconBubble icon={icon} />
       <View style={styles.metricText}>
         <ThemedText type="smallBold" style={styles.metricTitle}>
           {title}
@@ -244,19 +248,22 @@ function MetricRow({
       <ThemedText type="smallBold" style={[styles.metricAmount, positive && styles.metricAmountPositive]}>
         {amount}
       </ThemedText>
+      <MoloSymbol name="down" size={16} color={MoloColors.textFaint} />
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   heroCard: {
-    minHeight: 190,
+    minHeight: 178,
     borderRadius: MoloRadius.card,
     padding: Spacing.four,
     overflow: 'hidden',
     justifyContent: 'space-between',
     backgroundColor: MoloColors.purple900,
     boxShadow: MoloShadow.floating,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
   },
   heroOrb: {
     position: 'absolute',
@@ -267,6 +274,14 @@ const styles = StyleSheet.create({
     borderRadius: 90,
     backgroundColor: 'rgba(255, 255, 255, 0.16)',
   },
+  heroLine: {
+    position: 'absolute',
+    top: 1,
+    left: 20,
+    right: 20,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+  },
   heroMuted: {
     color: 'rgba(255, 255, 255, 0.72)',
   },
@@ -275,7 +290,7 @@ const styles = StyleSheet.create({
   },
   heroAmount: {
     color: MoloColors.text,
-    fontSize: 38,
+    fontSize: 40,
     lineHeight: 46,
   },
   heroMetaRow: {
@@ -293,7 +308,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: Spacing.three,
-    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+    backgroundColor: 'rgba(255, 255, 255, 0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
   },
   growthText: {
     color: MoloColors.text,
@@ -316,6 +333,7 @@ const styles = StyleSheet.create({
     backgroundColor: MoloColors.panelRaised,
     borderWidth: 1,
     borderColor: MoloColors.strokeSoft,
+    boxShadow: MoloShadow.glow,
   },
   quickActionIconText: {
     color: MoloColors.text,
@@ -334,7 +352,8 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     backgroundColor: MoloColors.panel,
     borderWidth: 1,
-    borderColor: MoloColors.stroke,
+    borderColor: 'rgba(208, 67, 221, 0.30)',
+    boxShadow: MoloShadow.panel,
   },
   infoCopy: {
     flex: 1,
@@ -381,9 +400,9 @@ const styles = StyleSheet.create({
   balanceList: {
     borderRadius: MoloRadius.card,
     overflow: 'hidden',
-    backgroundColor: MoloColors.panel,
+    backgroundColor: 'rgba(18, 20, 31, 0.88)',
     borderWidth: 1,
-    borderColor: MoloColors.stroke,
+    borderColor: 'rgba(255, 255, 255, 0.09)',
   },
   metricRow: {
     minHeight: 74,
@@ -392,7 +411,7 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     paddingHorizontal: Spacing.three,
     borderBottomWidth: 1,
-    borderBottomColor: MoloColors.stroke,
+    borderBottomColor: 'rgba(255, 255, 255, 0.07)',
   },
   metricText: {
     flex: 1,

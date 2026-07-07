@@ -2,11 +2,13 @@ import { useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { MoloCard } from '@/components/molo-card';
+import { MoloSymbol } from '@/components/molo-symbol';
 import { ThemedText } from '@/components/themed-text';
 import { IconBubble, WalletHeader, WalletScreen } from '@/components/wallet-screen';
 import { MoloColors, MoloGradients, MoloRadius, MoloShadow } from '@/constants/molo-design';
 import { Spacing } from '@/constants/theme';
-import { formatMoney, monthNames, plannedPurchases, type PlannedPurchase } from '@/lib/budget';
+import { monthNames, plannedPurchases, type PlannedPurchase } from '@/lib/budget';
+import { useMoney } from '@/lib/currency';
 
 const purchaseCategories: Record<string, string> = {
   laptop: 'Travail',
@@ -23,78 +25,89 @@ export default function ShoppingListScreen() {
   const nextPurchase = pendingPurchases
     .slice()
     .sort((a, b) => a.desiredMonth - b.desiredMonth || b.amount - a.amount)[0];
-  const buckets = buildMonthBuckets(pendingPurchases);
+  const money = useMoney();
 
   return (
     <WalletScreen maxTabletWidth={460}>
-      <WalletHeader eyebrow="Molo" title="Liste de courses" action={`${pendingPurchases.length} achats`} />
+      <WalletHeader title="Molo" actionIcon="more" actionHref="/settings" />
 
       <View style={[styles.totalCard, MoloGradients.heroDeep]}>
         <View style={styles.totalOrb} />
-        <ThemedText type="small" style={styles.cardMuted}>
-          Cout total des achats
-        </ThemedText>
-        <ThemedText type="title" style={styles.totalAmount}>
-          {formatMoney(total)}
-        </ThemedText>
+        <View style={styles.cardTopRow}>
+          <ThemedText type="subtitle" style={styles.cardTitleLarge}>
+            Liste de courses
+          </ThemedText>
+          <ThemedText type="smallBold" style={styles.cardText}>
+            {money(total)}
+          </ThemedText>
+        </View>
         <View style={styles.nextRow}>
           <View>
             <ThemedText type="small" style={styles.cardMuted}>
-              Prochain achat
+              {pendingPurchases.length} achats
             </ThemedText>
             <ThemedText type="smallBold" style={styles.cardText}>
-              {nextPurchase.name} en {monthNames[nextPurchase.desiredMonth]}
+              Prochain: {nextPurchase.name}
             </ThemedText>
           </View>
           <View style={styles.amountPill}>
             <ThemedText type="smallBold" style={styles.amountPillText}>
-              {formatMoney(nextPurchase.amount)}
+              {monthNames[nextPurchase.desiredMonth]}
             </ThemedText>
           </View>
         </View>
       </View>
 
-      <View style={styles.monthGrid}>
-        {buckets.map((bucket) => (
-          <View key={bucket.month} style={styles.monthTile}>
-            <ThemedText type="smallBold" style={styles.monthTitle}>
-              {monthNames[bucket.month]}
+      <View style={styles.categoryRail}>
+        {['Tous', 'Travail', 'Mobile', 'Voyage'].map((item, index) => (
+          <Pressable key={item} style={[styles.categoryChip, index === 0 && styles.categoryChipActive]}>
+            <ThemedText type="smallBold" style={index === 0 ? styles.categoryTextActive : styles.categoryText}>
+              {item}
             </ThemedText>
-            <ThemedText type="small" style={styles.monthTotal}>
-              {formatMoney(bucket.total)}
-            </ThemedText>
-          </View>
+          </Pressable>
         ))}
       </View>
 
-      <View style={styles.segmented}>
-        <Pressable style={styles.segmentActive}>
-          <ThemedText type="smallBold" style={styles.segmentActiveText}>
-            A acheter
-          </ThemedText>
-        </Pressable>
-        <Pressable style={styles.segment}>
-          <ThemedText type="smallBold" style={styles.segmentText}>
-            Realises
-          </ThemedText>
-        </Pressable>
+      <View style={styles.sectionTitleRow}>
+        <ThemedText type="smallBold" style={styles.sectionTitle}>
+          Articles
+        </ThemedText>
+        <ThemedText type="small" style={styles.sectionMeta}>
+          {pendingPurchases.length} achats
+        </ThemedText>
       </View>
 
       <View style={styles.listPanel}>
         {pendingPurchases.map((purchase) => (
-          <PurchaseRow key={purchase.id} purchase={purchase} />
+          <PurchaseRow key={purchase.id} purchase={purchase} money={money} />
         ))}
       </View>
 
+      <MoloCard style={styles.checkoutCard}>
+        <View style={styles.checkoutTotal}>
+          <ThemedText type="small" style={styles.purchaseMeta}>
+            Total estime
+          </ThemedText>
+          <ThemedText type="smallBold" style={styles.segmentActiveText}>
+            {money(total)}
+          </ThemedText>
+        </View>
+        <Pressable style={[styles.validateButton, MoloGradients.purpleButton]}>
+          <ThemedText type="smallBold" style={styles.validateText}>
+            Valider la liste
+          </ThemedText>
+        </Pressable>
+      </MoloCard>
+
       <MoloCard style={styles.tipCard}>
         <View style={styles.tipHeader}>
-          <IconBubble label="!" />
+          <IconBubble icon="ai" active />
           <View style={styles.tipCopy}>
             <ThemedText type="smallBold" style={styles.tipTitle}>
               Priorite budget
             </ThemedText>
             <ThemedText type="small" style={styles.tipText}>
-              Achats haute priorite d&apos;abord. Repousse ceux qui descendent sous ta marge de securite.
+              Molo recommande de garder au moins un mois de marge avant de valider un achat risque.
             </ThemedText>
           </View>
         </View>
@@ -103,12 +116,16 @@ export default function ShoppingListScreen() {
   );
 }
 
-function PurchaseRow({ purchase }: { purchase: PlannedPurchase }) {
-  const statusLabel = purchase.status === 'risque' ? 'Risque' : purchase.status === 'possible' ? 'Possible' : 'Prevu';
-
+function PurchaseRow({
+  money,
+  purchase,
+}: {
+  money: (amountXof: number) => string;
+  purchase: PlannedPurchase;
+}) {
   return (
     <Pressable style={styles.purchaseRow}>
-      <IconBubble label={purchase.name.slice(0, 1)} />
+      <IconBubble label={purchase.name.slice(0, 1)} active={purchase.status === 'possible'} />
       <View style={styles.purchaseMain}>
         <ThemedText type="smallBold" style={styles.purchaseName}>
           {purchase.name}
@@ -120,27 +137,18 @@ function PurchaseRow({ purchase }: { purchase: PlannedPurchase }) {
       </View>
       <View style={styles.purchaseSide}>
         <ThemedText type="smallBold" style={styles.purchaseAmount}>
-          {formatMoney(purchase.amount)}
+          {money(purchase.amount)}
         </ThemedText>
-        <View style={[styles.statusPill, purchase.status === 'risque' && styles.statusRisk]}>
-          <ThemedText type="smallBold" style={[styles.statusText, purchase.status === 'risque' && styles.statusTextRisk]}>
-            {statusLabel}
-          </ThemedText>
+        <View style={[styles.statusCircle, purchase.status === 'risque' && styles.statusCircleRisk]}>
+          <MoloSymbol
+            name="check"
+            size={16}
+            color={purchase.status === 'risque' ? MoloColors.danger : MoloColors.textMuted}
+          />
         </View>
       </View>
     </Pressable>
   );
-}
-
-function buildMonthBuckets(purchases: PlannedPurchase[]) {
-  const buckets = new Map<number, number>();
-  purchases.forEach((purchase) => {
-    buckets.set(purchase.desiredMonth, (buckets.get(purchase.desiredMonth) ?? 0) + purchase.amount);
-  });
-
-  return Array.from(buckets.entries())
-    .sort(([monthA], [monthB]) => monthA - monthB)
-    .map(([month, total]) => ({ month, total }));
 }
 
 const styles = StyleSheet.create({
@@ -152,6 +160,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: MoloColors.purple900,
     boxShadow: MoloShadow.floating,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
   },
   totalOrb: {
     position: 'absolute',
@@ -167,6 +177,17 @@ const styles = StyleSheet.create({
   },
   cardText: {
     color: MoloColors.text,
+  },
+  cardTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: Spacing.two,
+  },
+  cardTitleLarge: {
+    color: MoloColors.text,
+    fontSize: 28,
+    lineHeight: 34,
   },
   totalAmount: {
     color: MoloColors.text,
@@ -190,71 +211,60 @@ const styles = StyleSheet.create({
   amountPillText: {
     color: MoloColors.text,
   },
-  monthGrid: {
+  categoryRail: {
     flexDirection: 'row',
     gap: Spacing.two,
   },
-  monthTile: {
-    flex: 1,
-    minHeight: 74,
-    borderRadius: MoloRadius.tile,
-    padding: Spacing.two,
-    justifyContent: 'space-between',
-    backgroundColor: MoloColors.panel,
+  categoryChip: {
+    minHeight: 40,
+    borderRadius: 18,
+    paddingHorizontal: Spacing.three,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: MoloColors.panelRaised,
     borderWidth: 1,
     borderColor: MoloColors.stroke,
   },
-  monthTitle: {
+  categoryChipActive: {
+    backgroundColor: MoloColors.purple700,
+    borderColor: MoloColors.purple500,
+  },
+  categoryText: {
+    color: MoloColors.textMuted,
+  },
+  categoryTextActive: {
     color: MoloColors.text,
   },
-  monthTotal: {
-    color: MoloColors.textMuted,
-    fontVariant: ['tabular-nums'],
-  },
-  segmented: {
-    minHeight: 48,
-    padding: Spacing.one,
-    borderRadius: 24,
+  sectionTitleRow: {
     flexDirection: 'row',
-    gap: Spacing.one,
-    backgroundColor: MoloColors.panel,
-    borderWidth: 1,
-    borderColor: MoloColors.stroke,
-  },
-  segment: {
-    flex: 1,
-    borderRadius: 21,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
   },
-  segmentActive: {
-    flex: 1,
-    borderRadius: 21,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: MoloColors.text,
+  sectionTitle: {
+    color: MoloColors.text,
+    fontSize: 17,
   },
-  segmentText: {
+  sectionMeta: {
     color: MoloColors.textMuted,
   },
   segmentActiveText: {
-    color: MoloColors.canvas,
+    color: MoloColors.text,
   },
   listPanel: {
     borderRadius: MoloRadius.card,
     overflow: 'hidden',
-    backgroundColor: MoloColors.panel,
+    backgroundColor: 'rgba(18, 20, 31, 0.88)',
     borderWidth: 1,
     borderColor: MoloColors.stroke,
   },
   purchaseRow: {
-    minHeight: 80,
+    minHeight: 72,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
     paddingHorizontal: Spacing.three,
     borderBottomWidth: 1,
-    borderBottomColor: MoloColors.stroke,
+    borderBottomColor: 'rgba(255, 255, 255, 0.07)',
   },
   purchaseMain: {
     flex: 1,
@@ -267,23 +277,27 @@ const styles = StyleSheet.create({
     color: MoloColors.textMuted,
   },
   purchaseSide: {
-    alignItems: 'flex-end',
-    gap: Spacing.one,
+    flexDirection: 'row',
+    gap: Spacing.two,
+    alignSelf: 'stretch',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
   },
   purchaseAmount: {
     color: MoloColors.text,
     fontVariant: ['tabular-nums'],
   },
-  statusPill: {
-    minHeight: 24,
-    borderRadius: 12,
-    paddingHorizontal: Spacing.two,
+  statusCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: MoloColors.panelSoft,
+    borderWidth: 1,
+    borderColor: MoloColors.textFaint,
   },
-  statusRisk: {
-    backgroundColor: '#3A1D29',
+  statusCircleRisk: {
+    borderColor: MoloColors.danger,
   },
   statusText: {
     color: MoloColors.textMuted,
@@ -294,6 +308,25 @@ const styles = StyleSheet.create({
   },
   tipCard: {
     gap: Spacing.three,
+  },
+  checkoutCard: {
+    gap: Spacing.three,
+  },
+  checkoutTotal: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  validateButton: {
+    minHeight: 52,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: MoloColors.purple700,
+    boxShadow: MoloShadow.glow,
+  },
+  validateText: {
+    color: MoloColors.text,
   },
   tipHeader: {
     flexDirection: 'row',
