@@ -1,4 +1,5 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
+import { Platform } from 'react-native';
 
 export type DisplayCurrency = 'XOF' | 'EUR' | 'USD' | 'GBP' | 'CAD' | 'NGN' | 'GHS';
 
@@ -41,7 +42,7 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
 
     function setCurrency(nextCurrency: DisplayCurrency) {
       setCurrencyState(nextCurrency);
-      globalThis.localStorage?.setItem(storageKey, nextCurrency);
+      getBrowserStorage()?.setItem(storageKey, nextCurrency);
     }
 
     function convertAmount(amountXof: number) {
@@ -76,6 +77,21 @@ export function useMoney() {
 }
 
 function getStoredCurrency() {
-  const savedCurrency = globalThis.localStorage?.getItem(storageKey) as DisplayCurrency | null;
+  const savedCurrency = getBrowserStorage()?.getItem(storageKey) as DisplayCurrency | null;
   return currencyOptions.some((option) => option.code === savedCurrency) ? savedCurrency : null;
+}
+
+function getBrowserStorage() {
+  if (Platform.OS !== 'web') {
+    return null;
+  }
+
+  try {
+    const storage = globalThis.localStorage;
+    return typeof storage?.getItem === 'function' && typeof storage?.setItem === 'function'
+      ? storage
+      : null;
+  } catch {
+    return null;
+  }
 }

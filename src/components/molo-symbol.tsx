@@ -5,9 +5,11 @@ import { MoloColors } from '@/constants/molo-design';
 
 export type MoloSymbolName =
   | 'ai'
+  | 'bell'
   | 'budget'
   | 'calendar'
   | 'cart'
+  | 'chevronRight'
   | 'check'
   | 'down'
   | 'expense'
@@ -15,13 +17,16 @@ export type MoloSymbolName =
   | 'income'
   | 'mic'
   | 'more'
+  | 'search'
   | 'saving';
 
 const glyphs: Record<MoloSymbolName, string> = {
   ai: '✦',
+  bell: '♧',
   budget: '▤',
   calendar: '▣',
   cart: '▱',
+  chevronRight: '›',
   check: '○',
   down: '⌄',
   expense: '−',
@@ -29,6 +34,7 @@ const glyphs: Record<MoloSymbolName, string> = {
   income: '+',
   mic: '●',
   more: '••',
+  search: '⌕',
   saving: '%',
 };
 

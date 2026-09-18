@@ -1,498 +1,151 @@
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StatusBar, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ActionButton, MoloCard } from '@/components/molo-card';
 import { MoloSymbol, type MoloSymbolName } from '@/components/molo-symbol';
 import { ThemedText } from '@/components/themed-text';
-import { IconBubble, WalletHeader, WalletScreen } from '@/components/wallet-screen';
-import { MoloColors, MoloGradients, MoloRadius, MoloShadow } from '@/constants/molo-design';
+import { MoloColors, MoloRadius, MoloShadow } from '@/constants/molo-design';
 import { Spacing } from '@/constants/theme';
-import {
-  budgetColumns,
-  buildMonthlySummaries,
-  getPurchaseAdvice,
-  initialEntries,
-  monthNames,
-  plannedPurchases,
-  type BudgetEntry,
-} from '@/lib/budget';
+import { budgetColumns, buildMonthlySummaries, initialEntries, monthNames, plannedPurchases, type BudgetColumn } from '@/lib/budget';
 import { useMoney } from '@/lib/currency';
 
+const currentMonth = new Date().getMonth();
+
+const defaultRows: { id: string; label: string; icon: MoloSymbolName }[] = [
+  { id: 'salary', label: 'Salaire mensuel professionnel', icon: 'income' },
+  { id: 'passive', label: 'Revenus passifs attendus', icon: 'income' },
+  { id: 'fixed', label: 'Dépenses fixes', icon: 'expense' },
+  { id: 'variable', label: 'Dépenses variables', icon: 'expense' },
+  { id: 'surprise', label: 'Dépenses surprises', icon: 'expense' },
+  { id: 'savings', label: 'Épargne prévue', icon: 'saving' },
+  { id: 'balance', label: 'Solde mensuel', icon: 'budget' },
+  { id: 'annualBalance', label: 'Solde annuel', icon: 'calendar' },
+  { id: 'cumulativeBalance', label: 'Solde total cumulé', icon: 'saving' },
+  { id: 'plannedPurchases', label: 'Achats planifiés', icon: 'cart' },
+];
+
 export default function DashboardScreen() {
-  const [entries, setEntries] = useState(initialEntries);
-  const [activeMonth, setActiveMonth] = useState(5);
-  const [entryName, setEntryName] = useState('Gombo');
-  const [entryAmount, setEntryAmount] = useState('75000');
-  const [entryType, setEntryType] = useState<'income' | 'expense'>('income');
+  const [activeMonth, setActiveMonth] = useState(currentMonth);
   const money = useMoney();
-
-  const summaries = useMemo(() => buildMonthlySummaries(entries, budgetColumns), [entries]);
+  const insets = useSafeAreaInsets();
+  const summaries = useMemo(() => buildMonthlySummaries(initialEntries, budgetColumns), []);
   const current = summaries[activeMonth];
-  const advice = getPurchaseAdvice(plannedPurchases[0], summaries);
-  const savingsRate = current.income > 0 ? Math.round((current.savings / current.income) * 100) : 0;
-  const monthEntries = entries.filter(
-    (entry) => entry.month === activeMonth || entry.recurrence === 'monthly',
+  const monthEntries = useMemo(
+    () => initialEntries.filter((entry) => entry.month === activeMonth || entry.recurrence === 'monthly'),
+    [activeMonth],
   );
+  const customColumns = budgetColumns.filter((column) => !column.isDefault);
 
-  function addEntry() {
-    const amount = Number(entryAmount.replace(/\D/g, ''));
-    if (!entryName.trim() || amount <= 0) {
-      return;
-    }
-
-    const newEntry: BudgetEntry = {
-      id: `${Date.now()}`,
-      month: activeMonth,
-      columnId: entryType === 'income' ? 'freelance' : 'variable',
-      name: entryName.trim(),
-      amount,
-      category: entryType === 'income' ? 'Revenu ponctuel' : 'Depense variable',
-      recurrence: 'none',
-      status: entryType === 'income' ? 'recu' : 'realise',
-    };
-    setEntries((value) => [newEntry, ...value]);
-    setEntryName('');
-    setEntryAmount('');
+  function amountForColumn(column: BudgetColumn) {
+    return monthEntries.filter((entry) => entry.columnId === column.id).reduce((total, entry) => total + entry.amount, 0);
   }
 
+  function amountForRow(id: string) {
+    if (id === 'balance') return current.balance;
+    if (id === 'annualBalance') return current.annualBalance;
+    if (id === 'cumulativeBalance') return current.cumulativeBalance;
+    if (id === 'plannedPurchases') {
+      return plannedPurchases.filter((purchase) => purchase.desiredMonth === activeMonth).reduce((total, purchase) => total + purchase.amount, 0);
+    }
+    const column = budgetColumns.find((item) => item.id === id);
+    return column ? amountForColumn(column) : 0;
+  }
+
+  const savingsNow = summaries[currentMonth]?.cumulativeBalance ?? 0;
+
   return (
-    <WalletScreen>
-      <WalletHeader title="Molo" actionIcon="more" actionHref="/settings" />
-
-      <View style={[styles.heroCard, MoloGradients.hero]}>
-        <View style={styles.heroOrb} />
-        <View style={styles.heroLine} />
-        <ThemedText type="small" style={styles.heroMuted}>
-          Solde mensuel
-        </ThemedText>
-        <ThemedText type="title" style={styles.heroAmount}>
-          {money(current.balance)}
-        </ThemedText>
-        <View style={styles.heroMetaRow}>
-          <View style={styles.heroMeta}>
-            <ThemedText type="small" style={styles.heroMuted}>
-              Epargne prevue
-            </ThemedText>
-            <ThemedText type="smallBold" style={styles.heroText}>
-              {money(current.savings)}
-            </ThemedText>
+    <View style={styles.screen}>
+      <StatusBar barStyle="light-content" />
+      <ScrollView contentInsetAdjustmentBehavior="never" showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        <View style={[styles.hero, { paddingTop: insets.top + Spacing.three }]}>
+          <View style={styles.heroGlow} />
+          <View style={styles.header}>
+            <View>
+              <ThemedText type="small" style={styles.greeting}>Bonjour,</ThemedText>
+              <ThemedText type="subtitle" style={styles.userName}>Bienvenue sur Molo</ThemedText>
+            </View>
+            <View style={styles.headerActions}>
+              <HeaderAction icon="search" />
+              <HeaderAction icon="bell" />
+            </View>
           </View>
-          <View style={styles.growthPill}>
-            <ThemedText type="smallBold" style={styles.growthText}>
-              +{savingsRate}%
-            </ThemedText>
+
+          <View style={styles.savingsBlock}>
+            <ThemedText type="small" style={styles.savingsLabel}>Épargne actuelle</ThemedText>
+            <ThemedText selectable type="title" style={styles.savingsAmount}>{money(savingsNow)}</ThemedText>
+            <View style={styles.savingsHint}>
+              <View style={styles.savingsHintDot} />
+              <ThemedText type="smallBold" style={styles.savingsHintText}>Votre réserve financière</ThemedText>
+            </View>
           </View>
         </View>
-      </View>
 
-      <View style={styles.actionGrid}>
-        <QuickAction label="Revenus" icon="income" onPress={() => setEntryType('income')} />
-        <QuickAction label="Depenses" icon="expense" onPress={() => setEntryType('expense')} />
-        <QuickAction label="Epargne" icon="saving" onPress={() => setActiveMonth(8)} />
-        <QuickAction label="Mois" icon="calendar" onPress={() => setActiveMonth((value) => (value + 1) % 12)} />
-      </View>
+        <View style={styles.contentSheet}>
+          <View style={styles.sheetHandle} />
+          <View style={styles.sheetHeader}>
+            <View>
+              <ThemedText type="subtitle" style={styles.sheetTitle}>Vue {monthNames[activeMonth]}</ThemedText>
+            </View>
+          </View>
 
-      <View style={styles.infoStrip}>
-        <IconBubble icon="ai" active />
-        <View style={styles.infoCopy}>
-          <ThemedText type="smallBold" style={styles.infoTitle}>
-            Assistant IA
-          </ThemedText>
-          <ThemedText type="small" style={styles.infoDetail}>
-            Achat confortable en {monthNames[advice.recommendedMonth]}
-          </ThemedText>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.monthRail}>
+            {summaries.map((summary) => {
+              const isActive = activeMonth === summary.month;
+              return (
+                <Pressable key={summary.month} accessibilityRole="button" accessibilityState={{ selected: isActive }} onPress={() => setActiveMonth(summary.month)} style={({ pressed }) => [styles.monthChip, isActive && styles.monthChipActive, pressed && styles.pressed]}>
+                  <ThemedText type="smallBold" style={isActive ? styles.monthTextActive : styles.monthText}>{monthNames[summary.month]}</ThemedText>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+
+          <View style={styles.metricList}>
+            {defaultRows.map((row) => (
+              <BudgetRow key={row.id} icon={row.icon} title={row.label} value={money(amountForRow(row.id))} tone={row.id === 'balance' || row.id === 'annualBalance' || row.id === 'cumulativeBalance' ? 'highlight' : 'default'} />
+            ))}
+            {customColumns.map((column) => (
+              <BudgetRow key={column.id} icon={column.impact === 'negative' ? 'expense' : 'income'} title={column.name} value={money(amountForColumn(column))} tone="custom" />
+            ))}
+          </View>
         </View>
-        <MoloSymbol name="down" size={18} color={MoloColors.textMuted} />
-      </View>
-
-      <View style={styles.segmented}>
-        <Pressable style={styles.segmentActive}>
-          <ThemedText type="smallBold" style={styles.segmentActiveText}>
-            Budget
-          </ThemedText>
-        </Pressable>
-        <Pressable style={styles.segment}>
-          <ThemedText type="smallBold" style={styles.segmentText}>
-            Achats
-          </ThemedText>
-        </Pressable>
-      </View>
-
-      <View style={styles.balanceList}>
-        <MetricRow icon="income" title="Revenus" detail="Total du mois" amount={money(current.income)} positive />
-        <MetricRow
-          icon="expense"
-          title="Depenses"
-          detail="Total du mois"
-          amount={money(current.expenses)}
-        />
-        <MetricRow icon="saving" title="Epargne" detail="Total du mois" amount={money(current.savings)} positive />
-      </View>
-
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.monthRail}>
-        {summaries.map((summary) => (
-          <Pressable
-            key={summary.month}
-            onPress={() => setActiveMonth(summary.month)}
-            style={[styles.monthChip, activeMonth === summary.month && styles.monthChipActive]}>
-            <ThemedText
-              type="smallBold"
-              style={activeMonth === summary.month ? styles.monthTextActive : styles.monthText}>
-              {monthNames[summary.month]}
-            </ThemedText>
-            <ThemedText
-              type="small"
-              style={activeMonth === summary.month ? styles.monthValueActive : styles.monthValue}>
-              {money(summary.balance)}
-            </ThemedText>
-          </Pressable>
-        ))}
       </ScrollView>
-
-      <MoloCard style={styles.quickAddCard}>
-        <View style={styles.formTabs}>
-          <Pressable
-            onPress={() => setEntryType('income')}
-            style={[styles.formTab, entryType === 'income' && styles.formTabActive]}>
-            <ThemedText
-              type="smallBold"
-              style={entryType === 'income' ? styles.formTabTextActive : styles.formTabText}>
-              Revenu
-            </ThemedText>
-          </Pressable>
-          <Pressable
-            onPress={() => setEntryType('expense')}
-            style={[styles.formTab, entryType === 'expense' && styles.formTabActive]}>
-            <ThemedText
-              type="smallBold"
-              style={entryType === 'expense' ? styles.formTabTextActive : styles.formTabText}>
-              Depense
-            </ThemedText>
-          </Pressable>
-        </View>
-        <TextInput
-          value={entryName}
-          onChangeText={setEntryName}
-          placeholder="Nom"
-          placeholderTextColor={MoloColors.textFaint}
-          style={styles.input}
-        />
-        <TextInput
-          value={entryAmount}
-          onChangeText={setEntryAmount}
-          placeholder="Montant FCFA"
-          placeholderTextColor={MoloColors.textFaint}
-          inputMode="numeric"
-          style={styles.input}
-        />
-        <ActionButton label="Ajouter au budget" onPress={addEntry} />
-      </MoloCard>
-
-      <View style={styles.balanceList}>
-        {monthEntries.slice(0, 4).map((entry) => {
-          const column = budgetColumns.find((item) => item.id === entry.columnId);
-          const isExpense = column?.impact === 'negative';
-          return (
-            <MetricRow
-              key={entry.id}
-              icon={isExpense ? 'expense' : 'income'}
-              title={entry.name}
-              detail={column?.name ?? 'Budget'}
-              amount={`${isExpense ? '-' : '+'}${money(entry.amount)}`}
-              positive={!isExpense}
-            />
-          );
-        })}
-      </View>
-    </WalletScreen>
+    </View>
   );
 }
 
-function QuickAction({ label, icon, onPress }: { label: string; icon: MoloSymbolName; onPress: () => void }) {
-  return (
-    <Pressable onPress={onPress} style={styles.quickAction}>
-      <View style={[styles.quickActionIcon, MoloGradients.chip]}>
-        <MoloSymbol name={icon} size={24} />
-      </View>
-      <ThemedText type="small" style={styles.quickActionLabel}>
-        {label}
-      </ThemedText>
-    </Pressable>
-  );
+function HeaderAction({ icon }: { icon: MoloSymbolName }) {
+  return <Pressable accessibilityRole="button" style={({ pressed }) => [styles.headerAction, pressed && styles.pressed]}><MoloSymbol name={icon} size={20} color={MoloColors.jagger50} /></Pressable>;
 }
 
-function MetricRow({
-  icon,
-  title,
-  detail,
-  amount,
-  positive,
-}: {
-  icon: MoloSymbolName;
-  title: string;
-  detail: string;
-  amount: string;
-  positive?: boolean;
-}) {
+function BudgetRow({ icon, title, value, tone }: { icon: MoloSymbolName; title: string; value: string; tone: 'default' | 'highlight' | 'custom' }) {
   return (
-    <Pressable style={styles.metricRow}>
-      <IconBubble icon={icon} />
-      <View style={styles.metricText}>
-        <ThemedText type="smallBold" style={styles.metricTitle}>
-          {title}
-        </ThemedText>
-        <ThemedText type="small" style={styles.metricDetail}>
-          {detail}
-        </ThemedText>
-      </View>
-      <ThemedText type="smallBold" style={[styles.metricAmount, positive && styles.metricAmountPositive]}>
-        {amount}
-      </ThemedText>
-      <MoloSymbol name="down" size={16} color={MoloColors.textFaint} />
+    <Pressable accessibilityRole="button" accessibilityLabel={`Voir le détail de ${title}`} style={({ pressed }) => [styles.metricRow, pressed && styles.pressed]}>
+      <View style={[styles.rowIcon, tone === 'highlight' && styles.rowIconHighlight, tone === 'custom' && styles.rowIconCustom]}><MoloSymbol name={icon} size={19} color={tone === 'highlight' ? MoloColors.jagger700 : MoloColors.jagger800} /></View>
+      <ThemedText type="smallBold" style={styles.rowTitle} numberOfLines={1}>{title}</ThemedText>
+      <ThemedText selectable type="smallBold" style={[styles.rowValue, tone === 'highlight' && styles.rowValueHighlight]}>{value}</ThemedText>
+      <MoloSymbol name="chevronRight" size={20} color={MoloColors.jagger300} />
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  heroCard: {
-    minHeight: 178,
-    borderRadius: MoloRadius.card,
-    padding: Spacing.four,
-    overflow: 'hidden',
-    justifyContent: 'space-between',
-    backgroundColor: MoloColors.purple900,
-    boxShadow: MoloShadow.floating,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-  },
-  heroOrb: {
-    position: 'absolute',
-    right: -46,
-    bottom: -60,
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: 'rgba(255, 255, 255, 0.16)',
-  },
-  heroLine: {
-    position: 'absolute',
-    top: 1,
-    left: 20,
-    right: 20,
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.18)',
-  },
-  heroMuted: {
-    color: 'rgba(255, 255, 255, 0.72)',
-  },
-  heroText: {
-    color: MoloColors.text,
-  },
-  heroAmount: {
-    color: MoloColors.text,
-    fontSize: 40,
-    lineHeight: 46,
-  },
-  heroMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    gap: Spacing.three,
-  },
-  heroMeta: {
-    gap: Spacing.half,
-  },
-  growthPill: {
-    minHeight: 34,
-    borderRadius: 17,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: Spacing.three,
-    backgroundColor: 'rgba(255, 255, 255, 0.16)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-  },
-  growthText: {
-    color: MoloColors.text,
-  },
-  actionGrid: {
-    flexDirection: 'row',
-    gap: Spacing.two,
-  },
-  quickAction: {
-    flex: 1,
-    alignItems: 'center',
-    gap: Spacing.two,
-  },
-  quickActionIcon: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: MoloColors.panelRaised,
-    borderWidth: 1,
-    borderColor: MoloColors.strokeSoft,
-    boxShadow: MoloShadow.glow,
-  },
-  quickActionIconText: {
-    color: MoloColors.text,
-    fontSize: 18,
-  },
-  quickActionLabel: {
-    color: MoloColors.textMuted,
-    textAlign: 'center',
-  },
-  infoStrip: {
-    minHeight: 64,
-    borderRadius: MoloRadius.tile,
-    paddingHorizontal: Spacing.two,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    backgroundColor: MoloColors.panel,
-    borderWidth: 1,
-    borderColor: 'rgba(208, 67, 221, 0.30)',
-    boxShadow: MoloShadow.panel,
-  },
-  infoCopy: {
-    flex: 1,
-  },
-  infoTitle: {
-    color: MoloColors.text,
-  },
-  infoDetail: {
-    color: MoloColors.textMuted,
-  },
-  chevron: {
-    color: MoloColors.textMuted,
-    fontSize: 18,
-  },
-  segmented: {
-    minHeight: 48,
-    padding: Spacing.one,
-    borderRadius: 24,
-    flexDirection: 'row',
-    gap: Spacing.one,
-    backgroundColor: MoloColors.panel,
-    borderWidth: 1,
-    borderColor: MoloColors.stroke,
-  },
-  segment: {
-    flex: 1,
-    borderRadius: 21,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  segmentActive: {
-    flex: 1,
-    borderRadius: 21,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: MoloColors.text,
-  },
-  segmentText: {
-    color: MoloColors.textMuted,
-  },
-  segmentActiveText: {
-    color: MoloColors.canvas,
-  },
-  balanceList: {
-    borderRadius: MoloRadius.card,
-    overflow: 'hidden',
-    backgroundColor: 'rgba(18, 20, 31, 0.88)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.09)',
-  },
-  metricRow: {
-    minHeight: 74,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    paddingHorizontal: Spacing.three,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.07)',
-  },
-  metricText: {
-    flex: 1,
-    gap: 2,
-  },
-  metricTitle: {
-    color: MoloColors.text,
-  },
-  metricDetail: {
-    color: MoloColors.textMuted,
-  },
-  metricAmount: {
-    color: MoloColors.text,
-    fontVariant: ['tabular-nums'],
-  },
-  metricAmountPositive: {
-    color: MoloColors.success,
-  },
-  monthRail: {
-    gap: Spacing.two,
-    paddingRight: Spacing.three,
-  },
-  monthChip: {
-    width: 120,
-    minHeight: 70,
-    borderRadius: MoloRadius.tile,
-    padding: Spacing.two,
-    justifyContent: 'space-between',
-    backgroundColor: MoloColors.panel,
-    borderWidth: 1,
-    borderColor: MoloColors.stroke,
-  },
-  monthChipActive: {
-    backgroundColor: MoloColors.text,
-  },
-  monthText: {
-    color: MoloColors.textMuted,
-  },
-  monthTextActive: {
-    color: MoloColors.canvas,
-  },
-  monthValue: {
-    color: MoloColors.text,
-    fontVariant: ['tabular-nums'],
-  },
-  monthValueActive: {
-    color: MoloColors.canvas,
-    fontVariant: ['tabular-nums'],
-  },
-  quickAddCard: {
-    gap: Spacing.three,
-  },
-  formTabs: {
-    flexDirection: 'row',
-    gap: Spacing.two,
-  },
-  formTab: {
-    flex: 1,
-    minHeight: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: MoloColors.panelSoft,
-  },
-  formTabActive: {
-    backgroundColor: MoloColors.text,
-  },
-  formTabText: {
-    color: MoloColors.textMuted,
-  },
-  formTabTextActive: {
-    color: MoloColors.canvas,
-  },
-  input: {
-    minHeight: 54,
-    borderRadius: MoloRadius.tile,
-    borderWidth: 1,
-    borderColor: MoloColors.stroke,
-    paddingHorizontal: Spacing.three,
-    fontSize: 16,
-    color: MoloColors.text,
-    backgroundColor: MoloColors.canvasSoft,
-  },
+  screen: { flex: 1, backgroundColor: MoloColors.jagger950 },
+  scrollContent: { backgroundColor: MoloColors.jagger950 },
+  hero: { minHeight: 318, paddingHorizontal: 20, paddingBottom: 64, backgroundColor: MoloColors.jagger950, overflow: 'hidden' },
+  heroGlow: { position: 'absolute', width: 310, height: 310, right: -115, bottom: -118, borderRadius: 155, backgroundColor: MoloColors.jagger700, opacity: 0.56 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: Spacing.two },
+  greeting: { color: MoloColors.jagger200 }, userName: { color: MoloColors.jagger50, fontSize: 22, lineHeight: 28 }, headerActions: { flexDirection: 'row', gap: 10 },
+  headerAction: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255, 255, 255, 0.12)', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.16)' },
+  savingsBlock: { marginTop: 47, gap: Spacing.one }, savingsLabel: { color: MoloColors.jagger200, fontSize: 16 },
+  savingsAmount: { color: MoloColors.jagger50, fontSize: 42, lineHeight: 50, fontVariant: ['tabular-nums'] },
+  savingsHint: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 7 }, savingsHintDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#8DE6C2' }, savingsHintText: { color: MoloColors.jagger100 },
+  contentSheet: { marginTop: -31, minHeight: 680, paddingTop: 12, paddingHorizontal: 20, paddingBottom: 145, backgroundColor: '#FFFFFF', borderTopLeftRadius: 32, borderTopRightRadius: 32 },
+  sheetHandle: { alignSelf: 'center', width: 38, height: 4, borderRadius: 2, backgroundColor: MoloColors.jagger200 },
+  sheetHeader: { marginTop: 22, flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: Spacing.two }, sheetTitle: { color: MoloColors.jagger950, fontSize: 24, lineHeight: 30 }, sheetSubtitle: { marginTop: 2, color: '#7A7185' },
+  monthBadge: { paddingHorizontal: 12, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: MoloColors.jagger100 }, monthBadgeText: { color: MoloColors.jagger700 },
+  monthRail: { gap: 8, paddingVertical: 24, paddingRight: 18 }, monthChip: { minWidth: 54, height: 38, paddingHorizontal: 12, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: MoloColors.jagger50 }, monthChipActive: { backgroundColor: MoloColors.jagger700, boxShadow: MoloShadow.glow }, monthText: { color: MoloColors.jagger700 }, monthTextActive: { color: MoloColors.jagger50 },
+  listHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 10 }, listHeaderText: { color: '#8D8497', fontSize: 11, letterSpacing: 0.7 }, listHeaderCount: { color: '#8D8497' },
+  metricList: { borderRadius: MoloRadius.card, overflow: 'hidden' },
+  metricRow: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 11, paddingHorizontal: 0, borderBottomWidth: 1, borderBottomColor: MoloColors.jagger100 },
+  rowIcon: { width: 39, height: 39, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: MoloColors.jagger50 }, rowIconHighlight: { backgroundColor: MoloColors.jagger100 }, rowIconCustom: { backgroundColor: '#F7F0FF' }, rowTitle: { flex: 1, color: MoloColors.jagger950, fontSize: 13 }, rowValue: { color: '#5D5369', fontSize: 12, fontVariant: ['tabular-nums'] }, rowValueHighlight: { color: MoloColors.jagger700 }, pressed: { opacity: 0.68 },
 });

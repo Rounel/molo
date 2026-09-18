@@ -1,6 +1,17 @@
 import type { ViewStyle } from 'react-native';
 
 export const MoloColors = {
+  jagger50: '#faf5ff',
+  jagger100: '#f3e9fe',
+  jagger200: '#e8d6fe',
+  jagger300: '#d7b6fc',
+  jagger400: '#be87f9',
+  jagger500: '#a659f3',
+  jagger600: '#9037e6',
+  jagger700: '#7b26ca',
+  jagger800: '#6924a5',
+  jagger900: '#561e85',
+  jagger950: '#2c074b',
   canvas: '#07080F',
   canvasSoft: '#0C0D15',
   panel: '#12141F',
